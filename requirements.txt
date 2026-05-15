@@ -1,1 +1,11 @@
-# 预留依赖列表，后续按模块逐步补充。
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+sqlalchemy
+asyncpg
+alembic
+httpx
+langgraph
+pytest
+pytest-asyncio
