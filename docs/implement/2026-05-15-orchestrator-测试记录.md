@@ -1,105 +1,153 @@
 # Orchestrator 测试记录（2026-05-15）
 
-## 1. 依赖安装
+## 1. 环境
 
-执行命令：
+- Python：`3.14.5`
+- 虚拟环境：`orchestrator/.venv`
 
-```bash
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-```
+## 2. 执行命令与结果
 
-结果：
-
-- 安装成功。
-
-## 2. 单元测试
-
-测试文件：
-
-- `tests/test_config.py`
-- `tests/test_health.py`
-
-执行命令：
+### 2.1 P4 路由与服务单元测试
 
 ```bash
-.venv\Scripts\python.exe -m pytest tests/test_config.py tests/test_health.py -v
+.venv\Scripts\python.exe -m pytest tests/test_api_routes.py -v
 ```
 
-结果摘要：
+- 结果：`3 passed`
 
-- `3 passed in 0.60s`
+### 2.2 P5 策略引擎（TDD）
 
-覆盖点：
-
-1. `ORCH_` 前缀配置读取。
-2. `/health` 正常分支返回 `status=ok, database=ok`。
-3. `/health` 数据库异常分支返回明确错误类型。
-
-## 3. 补充验证
-
-执行命令：
+RED：
 
 ```bash
-.venv\Scripts\python.exe main.py
+.venv\Scripts\python.exe -m pytest tests/test_policy_engine.py -v
 ```
 
-结果：
+- 初始失败：`ModuleNotFoundError: app.services.policy_engine`
 
-- 输出：`Orchestrator scaffold is ready.`
-
-## 4. P3 数据模型测试（TDD）
-
-### 4.1 RED 阶段
-
-先新增 `tests/test_models.py`，执行：
+GREEN：
 
 ```bash
-.venv\Scripts\python.exe -m pytest tests/test_models.py -v
+.venv\Scripts\python.exe -m pytest tests/test_policy_engine.py -v
 ```
 
-结果：
+- 结果：`5 passed`
 
-- 失败（`ImportError: cannot import name 'models' from 'app.storage'`）。
+### 2.3 P6 Gateway（TDD）
 
-### 4.2 GREEN 阶段
-
-实现模型与迁移后，执行：
+RED：
 
 ```bash
-.venv\Scripts\python.exe -m pytest tests/test_models.py -v
+.venv\Scripts\python.exe -m pytest tests/test_agent_gateway.py -v
 ```
 
-结果：
+- 初始失败：`ModuleNotFoundError: app.gateway.agent_gateway`
 
-- `3 passed in 0.25s`
+GREEN：
 
-覆盖点：
+```bash
+.venv\Scripts\python.exe -m pytest tests/test_agent_gateway.py -v
+```
 
-1. 8 张核心表注册到 `Base.metadata`。
-2. 通用字段 `id/created_at/updated_at` 存在。
-3. 关键 JSON 字段使用 PostgreSQL `JSONB` 类型。
+- 结果：`3 passed`
 
-## 5. 全量单元测试
+### 2.4 P7 工作流（TDD）
 
-执行命令：
+RED：
+
+```bash
+.venv\Scripts\python.exe -m pytest tests/test_workflow_state.py -v
+```
+
+- 初始失败：`ModuleNotFoundError: app.workflow.runner`
+
+GREEN：
+
+```bash
+.venv\Scripts\python.exe -m pytest tests/test_workflow_state.py -v
+```
+
+- 结果：`4 passed`
+
+### 2.5 P8 报告生成（TDD）
+
+RED：
+
+```bash
+.venv\Scripts\python.exe -m pytest tests/test_report_builder.py -v
+```
+
+- 初始失败：
+  - 缺少关键章节
+  - `summary` 缺少 `approvals_count`
+
+GREEN：
+
+```bash
+.venv\Scripts\python.exe -m pytest tests/test_report_builder.py -v
+```
+
+- 结果：`2 passed`
+
+### 2.6 P9 phishing_agent REST 接口（TDD）
+
+RED：
+
+```bash
+cd ..\phishing_agent
+..\orchestrator\.venv\Scripts\python.exe -m pytest tests/test_rest_tasks.py -v
+```
+
+- 初始失败：
+  1. `python-multipart` 缺失
+  2. 接口未实现导致 `POST /api/tasks` 返回 404
+
+依赖修复：
+
+```bash
+..\orchestrator\.venv\Scripts\python.exe -m pip install python-multipart
+```
+
+GREEN：
+
+```bash
+..\orchestrator\.venv\Scripts\python.exe -m pytest tests/test_rest_tasks.py -v
+```
+
+- 结果：`2 passed`
+
+### 2.7 P10 mock 闭环验收（TDD）
+
+RED：
+
+```bash
+cd ..\orchestrator
+.venv\Scripts\python.exe -m pytest tests/test_mock_closed_loop.py -v
+```
+
+- 初始失败：`KeyError: 'completed'`
+
+GREEN：
+
+```bash
+.venv\Scripts\python.exe -m pytest tests/test_mock_closed_loop.py -v
+```
+
+- 结果：`1 passed`
+
+### 2.8 全量回归（P10 后）
 
 ```bash
 .venv\Scripts\python.exe -m pytest tests -v
 ```
 
-结果：
+- 结果：`24 passed in 0.85s`
 
-- `6 passed in 0.42s`
-
-## 6. 迁移离线验证
-
-执行命令：
+### 2.9 phishing_agent 复核
 
 ```bash
-.venv\Scripts\python.exe -m alembic upgrade head --sql
+cd ..\phishing_agent
+..\orchestrator\.venv\Scripts\python.exe -m pytest tests/test_rest_tasks.py -v
 ```
 
-结果：
-
-- 成功输出 PostgreSQL DDL。
-- 包含 `root_tasks`、`agent_tasks`、`approvals`、`artifacts`、`findings`、`suggested_actions`、`events`、`reports` 8 张表创建语句。
+- 结果：`2 passed`
