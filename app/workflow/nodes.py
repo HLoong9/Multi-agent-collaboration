@@ -35,6 +35,9 @@ def web_initial_scan(state: MultiAgentState) -> MultiAgentState:
             "severity": "medium",
             "title": "source leak hint",
             "detail": "found exposed source path",
+            "evidence": {
+                "emails": ["hr@demotech.local", "admin@demotech.local"],
+            },
         }
     )
     state["artifacts"].append(
@@ -91,10 +94,27 @@ def web_reverify(state: MultiAgentState) -> MultiAgentState:
             "severity": "medium",
             "title": "email clue",
             "detail": "found email clue for social prep",
+            "evidence": {
+                "domains": ["demotech.local"],
+            },
         }
     )
-    state["current_step"] = "approval_social_engineering"
+    state["current_step"] = "social_context_review"
     return state
+
+
+def social_context_review(state: MultiAgentState) -> MultiAgentState:
+    state["task_tree"].append({"task": "social_context_review", "status": "completed"})
+    has_targets = bool(_collect_social_targets(state))
+    if has_targets:
+        state["current_step"] = "approval_social_engineering"
+        return state
+
+    return _approval_gate(state, "approval_social_context", "social_context", "social_target_analysis")
+
+
+def approval_social_context(state: MultiAgentState) -> MultiAgentState:
+    return _approval_gate(state, "approval_social_context", "social_context", "social_target_analysis")
 
 
 def approval_social_engineering(state: MultiAgentState) -> MultiAgentState:
@@ -102,12 +122,36 @@ def approval_social_engineering(state: MultiAgentState) -> MultiAgentState:
         state,
         "approval_social_engineering",
         "social_engineering",
-        "social_engineering_prepare",
+        "social_target_analysis",
     )
 
 
-def social_engineering_prepare(state: MultiAgentState) -> MultiAgentState:
-    state["task_tree"].append({"task": "social_engineering_prepare", "status": "completed"})
+def social_target_analysis(state: MultiAgentState) -> MultiAgentState:
+    state["task_tree"].append({"task": "social_target_analysis", "status": "completed"})
+    state["findings"].append(
+        {
+            "source": "social_engineering",
+            "severity": "info",
+            "title": "target analysis completed",
+            "detail": "candidate recipients and roles were analyzed before mail drafting",
+        }
+    )
+    state["artifacts"].append(
+        {
+            "artifact_type": "target_analysis",
+            "artifact_ref": "artifact://social/target-analysis",
+        }
+    )
+    state["current_step"] = "approval_email_generation"
+    return state
+
+
+def approval_email_generation(state: MultiAgentState) -> MultiAgentState:
+    return _approval_gate(state, "approval_email_generation", "email_generation", "social_email_generation")
+
+
+def social_email_generation(state: MultiAgentState) -> MultiAgentState:
+    state["task_tree"].append({"task": "social_email_generation", "status": "completed"})
     state["artifacts"].append(
         {
             "artifact_type": "mail_draft",
@@ -189,3 +233,27 @@ def _approval_gate(
     state["workflow_status"] = "rejected"
     state["current_step"] = step_name
     return state
+
+
+def _collect_social_targets(state: MultiAgentState) -> list[str]:
+    emails = []
+    manual_targets = []
+    for finding in state.get("findings", []):
+        evidence = finding.get("evidence") or {}
+        if isinstance(evidence, dict):
+            if isinstance(evidence.get("emails"), list):
+                emails.extend(str(item).strip() for item in evidence["emails"] if str(item).strip())
+            if isinstance(evidence.get("domains"), list):
+                manual_targets.extend(str(item).strip() for item in evidence["domains"] if str(item).strip())
+    for item in state.get("root_context", {}).get("manual_targets", []):
+        text = str(item).strip()
+        if text:
+            manual_targets.append(text)
+    seen = set()
+    result = []
+    for item in emails + manual_targets:
+        if item in seen:
+            continue
+        seen.add(item)
+        result.append(item)
+    return result

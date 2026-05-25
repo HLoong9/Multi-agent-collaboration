@@ -37,6 +37,34 @@ def test_high_risk_action_requires_approval() -> None:
     assert engine.requires_approval("read_only_summary") is False
 
 
+def test_social_context_assessment_accepts_known_targets() -> None:
+    engine = PolicyEngine()
+    assessment = engine.assess_social_context(
+        {
+            "emails": ["hr@demotech.local"],
+            "domains": [],
+            "manual_targets": [],
+            "web_findings": [],
+        }
+    )
+    assert assessment["is_sufficient"] is True
+    assert "hr@demotech.local" in assessment["candidate_targets"]
+
+
+def test_social_context_assessment_requests_input_when_empty() -> None:
+    engine = PolicyEngine()
+    assessment = engine.assess_social_context(
+        {
+            "emails": [],
+            "domains": [],
+            "manual_targets": [],
+            "web_findings": [],
+        }
+    )
+    assert assessment["is_sufficient"] is False
+    assert assessment["requires_user_input"] is True
+
+
 def test_attachment_demo_public_callback_denied() -> None:
     engine = PolicyEngine()
     ok, reason = engine.validate_attachment_demo_scope(

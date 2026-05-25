@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Orchestrator Console</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --text: #17202a;
+      --muted: #667085;
+      --line: #d9dee7;
+      --accent: #1f7a8c;
+      --accent-dark: #145c6a;
+      --danger: #b42318;
+      --ok: #067647;
+      --warn: #b54708;
+      --chip: #e8f3f6;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid var(--line);
+      padding: 18px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+      gap: 16px;
+      padding: 16px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin: 12px 0 6px;
+    }
+
+    input, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 9px 10px;
+      font: inherit;
+      background: #fff;
+      color: var(--text);
+    }
+
+    textarea {
+      min-height: 92px;
+      resize: vertical;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 13px;
+    }
+
+    button {
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 700;
+      min-height: 36px;
+      padding: 8px 12px;
+    }
+
+    button:hover { background: var(--accent-dark); }
+    button.secondary {
+      background: #fff;
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+    button.secondary:hover { background: var(--chip); }
+    button.danger {
+      background: #fff;
+      color: var(--danger);
+      border-color: #f0b8b2;
+    }
+    button.danger:hover { background: #fff3f1; }
+    button.small {
+      padding: 6px 10px;
+      min-height: 30px;
+      border-radius: 8px;
+    }
+    button.ghost {
+      background: #fff;
+      color: var(--accent);
+      border-color: var(--line);
+    }
+    .hidden { display: none; }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fbfcfe;
+      min-height: 72px;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 15px;
+      overflow-wrap: anywhere;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      border-radius: 999px;
+      background: var(--chip);
+      color: var(--accent-dark);
+      padding: 2px 9px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .chip.ok { background: #dcfae6; color: var(--ok); }
+    .chip.warn { background: #fff1d6; color: var(--warn); }
+    .chip.danger { background: #ffe4e0; color: var(--danger); }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 12px;
+      overflow-x: auto;
+    }
+
+    .tab {
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--muted);
+      padding: 8px 6px;
+      min-height: 34px;
+    }
+
+    .tab.active {
+      color: var(--accent-dark);
+      border-bottom: 2px solid var(--accent);
+    }
+
+    .tab:hover { background: transparent; color: var(--accent-dark); }
+
+    .list {
+      display: grid;
+      gap: 8px;
+      max-height: 360px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fff;
+    }
+    .item.danger {
+      background: #ffe4e0;
+      border-color: #f0b8b2;
+    }
+
+    .item-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    .muted { color: var(--muted); }
+    .mono {
+      font-family: Consolas, "Courier New", monospace;
+      overflow-wrap: anywhere;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      background: #111827;
+      color: #f9fafb;
+      border-radius: 8px;
+      padding: 12px;
+      max-height: 520px;
+      overflow: auto;
+      font-size: 13px;
+    }
+
+    .message {
+      min-height: 22px;
+      margin-top: 10px;
+      color: var(--muted);
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 920px) {
+      main { grid-template-columns: 1fr; }
+      .status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .split { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Orchestrator Console</h1>
+  </header>
+
+  <main>
+    <section>
+      <h2>创建协同任务</h2>
+      <label for="targetUrl">目标 URL</label>
+      <input id="targetUrl" value="http://web1.demotech.local" />
+
+      <label for="exerciseGoal">演练目标</label>
+      <input id="exerciseGoal" value="多 Agent 本地模拟闭环" />
+
+      <label for="createdBy">操作人</label>
+      <input id="createdBy" value="operator" />
+
+      <label for="authScope">授权范围 JSON</label>
+      <textarea id="authScope">{
+  "allowed_hosts": ["web1.demotech.local", "web2.demotech.local"],
+  "allowed_cidrs": ["10.20.30.0/24"]
+}</textarea>
+
+      <div class="actions">
+        <button id="createTask">创建并启动</button>
+        <button id="refresh" class="secondary">刷新</button>
+      </div>
+
+      <label for="rootTaskId">当前 root_task_id</label>
+      <input id="rootTaskId" class="mono" placeholder="创建任务后自动填入，也可以粘贴已有 ID" />
+
+      <div class="actions">
+        <button id="loadTask" class="secondary">加载任务</button>
+        <button id="approvePending">批准当前审批</button>
+        <button id="rejectPending" class="danger">拒绝当前审批</button>
+      </div>
+
+      <div id="message" class="message"></div>
+    </section>
+
+    <section>
+      <h2>任务状态</h2>
+      <div class="status-grid">
+        <div class="metric"><span>状态</span><strong id="statusValue">-</strong></div>
+        <div class="metric"><span>当前步骤</span><strong id="stepValue">-</strong></div>
+        <div class="metric"><span>审批</span><strong id="approvalValue">-</strong></div>
+        <div class="metric"><span>目标</span><strong id="targetValue">-</strong></div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="approvals">审批</button>
+        <button class="tab" data-tab="events">事件</button>
+        <button class="tab" data-tab="findings">发现项</button>
+        <button class="tab" data-tab="artifacts">产物</button>
+        <button class="tab" data-tab="report">报告</button>
+      </div>
+
+      <div id="tab-approvals" class="tab-panel">
+        <div id="approvalsList" class="list"></div>
+      </div>
+      <div id="tab-events" class="tab-panel" hidden>
+        <div id="eventsList" class="list"></div>
+      </div>
+      <div id="tab-findings" class="tab-panel" hidden>
+        <div id="findingsList" class="list"></div>
+      </div>
+      <div id="tab-artifacts" class="tab-panel" hidden>
+        <div id="artifactsList" class="list"></div>
+      </div>
+      <div id="tab-report" class="tab-panel" hidden>
+        <div class="actions">
+          <button id="rebuildReport" class="secondary">重建报告</button>
+        </div>
+        <pre id="reportContent">暂无报告</pre>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      rootTaskId: "",
+      task: null,
+      approvals: [],
+      events: [],
+      findings: [],
+      artifacts: [],
+      report: null,
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    function setMessage(text, kind = "muted") {
+      const el = $("message");
+      el.textContent = text;
+      el.style.color = kind === "error" ? "var(--danger)" : kind === "ok" ? "var(--ok)" : "var(--muted)";
+    }
+
+    function statusChip(status) {
+      const cls = status === "completed" ? "ok" : status === "waiting_approval" ? "warn" : status === "rejected" ? "danger" : "";
+      return `<span class="chip ${cls}">${escapeHtml(status || "-")}</span>`;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    async function request(path, options = {}) {
+      const resp = await fetch(path, {
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+        ...options,
+      });
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(`${resp.status} ${resp.statusText}: ${text}`);
+      }
+      return resp.json();
+    }
+
+    async function createTask() {
+      let authScope;
+      try {
+        authScope = JSON.parse($("authScope").value);
+      } catch (err) {
+        setMessage("授权范围 JSON 格式错误", "error");
+        return;
+      }
+
+      const payload = {
+        target_url: $("targetUrl").value.trim(),
+        exercise_goal: $("exerciseGoal").value.trim(),
+        auth_scope: authScope,
+        created_by: $("createdBy").value.trim() || "operator",
+      };
+
+      setMessage("正在创建任务...");
+      const created = await request("/api/tasks", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      state.rootTaskId = created.root_task_id;
+      $("rootTaskId").value = state.rootTaskId;
+      await loadTask();
+      setMessage("任务已创建并推进到当前可执行状态", "ok");
+    }
+
+    async function loadTask() {
+      const id = $("rootTaskId").value.trim();
+      if (!id) {
+        setMessage("请先创建任务或填写 root_task_id", "error");
+        return;
+      }
+      state.rootTaskId = id;
+      const [task, approvals, events, findings, artifacts] = await Promise.all([
+        request(`/api/tasks/${id}`),
+        request(`/api/tasks/${id}/approvals`),
+        request(`/api/tasks/${id}/events`),
+        request(`/api/tasks/${id}/findings`),
+        request(`/api/tasks/${id}/artifacts`),
+      ]);
+      state.task = task;
+      state.approvals = approvals;
+      state.events = events;
+      state.findings = findings;
+      state.artifacts = artifacts;
+      await loadReport(false);
+      render();
+      setMessage("已刷新", "ok");
+    }
+
+    async function loadReport(showError = true) {
+      if (!state.rootTaskId) return;
+      try {
+        state.report = await request(`/api/tasks/${state.rootTaskId}/report`);
+      } catch (err) {
+        state.report = null;
+        if (showError) setMessage("暂无报告，可在流程完成后查看", "error");
+      }
+    }
+
+    async function rebuildReport() {
+      if (!state.rootTaskId) return;
+      state.report = await request(`/api/tasks/${state.rootTaskId}/report/rebuild`, { method: "POST" });
+      render();
+      setMessage("报告已重建", "ok");
+    }
+
+    function pendingApproval() {
+      return state.approvals.find((item) => item.status === "pending");
+    }
+
+    async function decidePending(decision) {
+      const approval = pendingApproval();
+      if (!approval) {
+        setMessage("当前没有 pending 审批", "error");
+        return;
+      }
+      setMessage(`正在${decision === "approve" ? "批准" : "拒绝"}审批...`);
+      await request(`/api/approvals/${approval.id}/decide`, {
+        method: "POST",
+        body: JSON.stringify({
+          decision,
+          decided_by: $("createdBy").value.trim() || "operator",
+          comment: decision === "approve" ? "approved from web console" : "rejected from web console",
+        }),
+      });
+      await loadTask();
+    }
+
+    function render() {
+      const task = state.task || {};
+      $("statusValue").innerHTML = statusChip(task.status);
+      $("stepValue").textContent = task.current_step || "-";
+      $("targetValue").textContent = task.target_url || "-";
+      const pending = pendingApproval();
+      $("approvalValue").innerHTML = pending ? statusChip(`${pending.action_type}: pending`) : statusChip("none");
+      renderApprovals();
+      renderEvents();
+      renderFindings();
+      renderArtifacts();
+      $("reportContent").textContent = state.report?.content_markdown || "暂无报告";
+    }
+
+    function renderApprovals() {
+      $("approvalsList").innerHTML = state.approvals.length ? state.approvals.map((item) => `
+        <div class="item">
+          <div class="item-title">
+            <span>${escapeHtml(item.action_type)}</span>
+            ${statusChip(item.status)}
+          </div>
+          <div class="muted mono">${escapeHtml(item.id)}</div>
+          <div class="muted">decision_by: ${escapeHtml(item.decision_by || "-")}</div>
+          <div class="muted">comment: ${escapeHtml(item.decision_comment || "-")}</div>
+        </div>
+      `).join("") : `<div class="muted">暂无审批</div>`;
+    }
+
+    function renderEvents() {
+      $("eventsList").innerHTML = state.events.length ? state.events.map((item) => `
+        <div class="item ${item.event_type === 'agent_gateway_call_fallback' ? 'danger' : ''}">
+          <div class="item-title">
+            <span>${escapeHtml(item.event_type)}</span>
+            <span class="muted">${escapeHtml(item.created_at || "")}</span>
+          </div>
+          <div>${escapeHtml(item.message)}</div>
+          ${item.event_type === "agent_gateway_call_fallback" ? `
+            <div class="mono">Phishing Agent：${escapeHtml((item.payload || {}).base_url || "-")}</div>
+            <div class="mono">${escapeHtml((item.payload || {}).error_message || (item.payload || {}).error_type || "-")}</div>
+            <div class="muted">已自动切换至本地模拟结果（功能受限）。</div>
+          ` : `<div class="muted mono">${escapeHtml(JSON.stringify(item.payload || {}))}</div>`}
+        </div>
+      `).join("") : `<div class="muted">暂无事件</div>`;
+    }
+
+    function renderFindings() {
+      $("findingsList").innerHTML = state.findings.length ? state.findings.map((item) => `
+        <div class="item">
+          <div class="item-title">
+            <span>${escapeHtml(item.title)}</span>
+            <span class="chip">${escapeHtml(item.severity)}</span>
+          </div>
+          <div class="muted">${escapeHtml(item.source)}</div>
+          <div>${escapeHtml(item.detail)}</div>
+          <div class="muted mono">${escapeHtml(JSON.stringify(item.evidence || {}))}</div>
+        </div>
+      `).join("") : `<div class="muted">暂无发现项</div>`;
+    }
+
+    function renderArtifacts() {
+      $("artifactsList").innerHTML = state.artifacts.length ? state.artifacts.map((item) => `
+        <div class="item">
+          <div class="item-title">
+            <span>${escapeHtml(item.title)}</span>
+            <span class="chip">${escapeHtml(item.artifact_type)}</span>
+          </div>
+          <div>
+            <button class="small ghost" data-ref-target="artifact_ref_${escapeHtml(String(item.id || '').replaceAll('-', '_'))}">查看${escapeHtml(item.title || item.artifact_type)}</button>
+            <div id="artifact_ref_${escapeHtml(String(item.id || '').replaceAll('-', '_'))}" class="mono hidden">${escapeHtml(item.artifact_ref)}</div>
+          </div>
+          <div class="muted mono">${escapeHtml(JSON.stringify(item.artifact_metadata || {}))}</div>
+        </div>
+      `).join("") : `<div class="muted">暂无产物</div>`;
+    }
+
+    $("artifactsList").addEventListener("click", (ev) => {
+      const btn = ev.target.closest("button[data-ref-target]");
+      if (!btn) return;
+      const target = btn.dataset.refTarget || "";
+      const el = target ? document.getElementById(target) : null;
+      if (!el) return;
+      el.classList.toggle("hidden");
+    });
+
+    document.querySelectorAll(".tab").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));
+        document.querySelectorAll(".tab-panel").forEach((item) => item.hidden = true);
+        btn.classList.add("active");
+        $(`tab-${btn.dataset.tab}`).hidden = false;
+      });
+    });
+
+    $("createTask").addEventListener("click", () => createTask().catch((err) => setMessage(err.message, "error")));
+    $("refresh").addEventListener("click", () => loadTask().catch((err) => setMessage(err.message, "error")));
+    $("loadTask").addEventListener("click", () => loadTask().catch((err) => setMessage(err.message, "error")));
+    $("approvePending").addEventListener("click", () => decidePending("approve").catch((err) => setMessage(err.message, "error")));
+    $("rejectPending").addEventListener("click", () => decidePending("reject").catch((err) => setMessage(err.message, "error")));
+    $("rebuildReport").addEventListener("click", () => rebuildReport().catch((err) => setMessage(err.message, "error")));
+  </script>
+</body>
+</html>

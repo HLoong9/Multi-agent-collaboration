@@ -16,7 +16,11 @@ NODE_SEQUENCE = {
     "approval_web_reverify": None,
     "web_reverify": "approval_social_engineering",
     "approval_social_engineering": None,
-    "social_engineering_prepare": "approval_gophish_create",
+    "social_context_review": None,
+    "approval_social_context": None,
+    "social_target_analysis": "approval_email_generation",
+    "approval_email_generation": None,
+    "social_email_generation": "approval_gophish_create",
     "approval_gophish_create": None,
     "gophish_create": "approval_mail_send",
     "approval_mail_send": None,
@@ -34,8 +38,12 @@ NODE_FUNCS = {
     "route_after_code_audit": nodes.route_after_code_audit,
     "approval_web_reverify": nodes.approval_web_reverify,
     "web_reverify": nodes.web_reverify,
+    "social_context_review": nodes.social_context_review,
+    "approval_social_context": nodes.approval_social_context,
     "approval_social_engineering": nodes.approval_social_engineering,
-    "social_engineering_prepare": nodes.social_engineering_prepare,
+    "social_target_analysis": nodes.social_target_analysis,
+    "approval_email_generation": nodes.approval_email_generation,
+    "social_email_generation": nodes.social_email_generation,
     "approval_gophish_create": nodes.approval_gophish_create,
     "gophish_create": nodes.gophish_create,
     "approval_mail_send": nodes.approval_mail_send,
@@ -126,10 +134,18 @@ class WorkflowRunner:
             return "code_audit" if not state.get("waiting_approval") and state.get("workflow_status") != "rejected" else None
         if current_step == "route_after_code_audit":
             return state.get("current_step")
+        if current_step == "web_reverify":
+            return state.get("current_step")
+        if current_step == "social_context_review":
+            return state.get("current_step")
         if current_step == "approval_web_reverify":
             return "web_reverify" if not state.get("waiting_approval") and state.get("workflow_status") != "rejected" else None
+        if current_step == "approval_social_context":
+            return "social_target_analysis" if not state.get("waiting_approval") and state.get("workflow_status") != "rejected" else None
         if current_step == "approval_social_engineering":
-            return "social_engineering_prepare" if not state.get("waiting_approval") and state.get("workflow_status") != "rejected" else None
+            return "social_target_analysis" if not state.get("waiting_approval") and state.get("workflow_status") != "rejected" else None
+        if current_step == "approval_email_generation":
+            return "social_email_generation" if not state.get("waiting_approval") and state.get("workflow_status") != "rejected" else None
         if current_step == "approval_gophish_create":
             return "gophish_create" if not state.get("waiting_approval") and state.get("workflow_status") != "rejected" else None
         if current_step == "approval_mail_send":

@@ -6,6 +6,7 @@ import uuid
 
 from app.schemas.tasks import TaskCreateRequest
 from app.storage.repository import OrchestratorRepository
+from app.services.workflow_service import WorkflowService
 
 
 class TaskManager:
@@ -13,19 +14,7 @@ class TaskManager:
         self.repo = repo
 
     async def create_task(self, payload: TaskCreateRequest):
-        task = await self.repo.create_root_task(
-            target_url=payload.target_url,
-            exercise_goal=payload.exercise_goal,
-            auth_scope=payload.auth_scope,
-            created_by=payload.created_by,
-        )
-        await self.repo.create_event(
-            root_task_id=task.id,
-            event_type="task_created",
-            message="root task created",
-            payload={"target_url": payload.target_url},
-        )
-        return task
+        return await WorkflowService(self.repo).create_and_start(payload)
 
     async def get_task(self, root_task_id: uuid.UUID):
         return await self.repo.get_root_task(root_task_id)

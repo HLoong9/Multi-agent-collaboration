@@ -8,7 +8,16 @@ from datetime import datetime, timezone
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.storage.models import AgentTask, Approval, Artifact, Event, Finding, Report, RootTask
+from app.storage.models import (
+    AgentTask,
+    Approval,
+    Artifact,
+    Event,
+    Finding,
+    Report,
+    RootTask,
+    SuggestedAction,
+)
 
 
 class OrchestratorRepository:
@@ -46,6 +55,15 @@ class OrchestratorRepository:
         await self.session.commit()
         await self.session.refresh(entity)
         return entity
+
+    async def set_root_task_step(
+        self, root_task_id: uuid.UUID, *, status: str, current_step: str
+    ) -> RootTask | None:
+        return await self.update_root_task_status(
+            root_task_id,
+            status=status,
+            current_step=current_step,
+        )
 
     async def create_approval(
         self,
@@ -89,6 +107,25 @@ class OrchestratorRepository:
         await self.session.refresh(entity)
         return entity
 
+    async def complete_agent_task(
+        self,
+        agent_task_id: uuid.UUID,
+        *,
+        response_payload: dict,
+        status: str = "completed",
+        error_message: str | None = None,
+    ) -> AgentTask | None:
+        entity = await self.session.get(AgentTask, agent_task_id)
+        if entity is None:
+            return None
+        entity.status = status
+        entity.response_payload = response_payload
+        entity.error_message = error_message
+        entity.updated_at = datetime.now(timezone.utc)
+        await self.session.commit()
+        await self.session.refresh(entity)
+        return entity
+
     async def get_approval(self, approval_id: uuid.UUID) -> Approval | None:
         return await self.session.get(Approval, approval_id)
 
@@ -96,6 +133,17 @@ class OrchestratorRepository:
         stmt: Select[tuple[Approval]] = select(Approval).where(Approval.root_task_id == root_task_id)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_pending_approval(
+        self, root_task_id: uuid.UUID, *, action_type: str
+    ) -> Approval | None:
+        stmt: Select[tuple[Approval]] = select(Approval).where(
+            Approval.root_task_id == root_task_id,
+            Approval.action_type == action_type,
+            Approval.status == "pending",
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def decide_approval(
         self,
@@ -140,6 +188,7 @@ class OrchestratorRepository:
         self,
         *,
         root_task_id: uuid.UUID,
+        agent_task_id: uuid.UUID | None = None,
         source: str,
         severity: str,
         title: str,
@@ -148,6 +197,7 @@ class OrchestratorRepository:
     ) -> Finding:
         entity = Finding(
             root_task_id=root_task_id,
+            agent_task_id=agent_task_id,
             source=source,
             severity=severity,
             title=title,
@@ -168,6 +218,7 @@ class OrchestratorRepository:
         self,
         *,
         root_task_id: uuid.UUID,
+        agent_task_id: uuid.UUID | None = None,
         artifact_type: str,
         title: str,
         artifact_ref: str,
@@ -175,6 +226,7 @@ class OrchestratorRepository:
     ) -> Artifact:
         entity = Artifact(
             root_task_id=root_task_id,
+            agent_task_id=agent_task_id,
             artifact_type=artifact_type,
             title=title,
             artifact_ref=artifact_ref,
@@ -189,6 +241,27 @@ class OrchestratorRepository:
         stmt: Select[tuple[Artifact]] = select(Artifact).where(Artifact.root_task_id == root_task_id)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def save_suggested_action(
+        self,
+        *,
+        root_task_id: uuid.UUID,
+        action_type: str,
+        action_payload: dict | None = None,
+        agent_task_id: uuid.UUID | None = None,
+        status: str = "proposed",
+    ) -> SuggestedAction:
+        entity = SuggestedAction(
+            root_task_id=root_task_id,
+            agent_task_id=agent_task_id,
+            action_type=action_type,
+            action_payload=action_payload or {},
+            status=status,
+        )
+        self.session.add(entity)
+        await self.session.commit()
+        await self.session.refresh(entity)
+        return entity
 
     async def save_report(
         self,

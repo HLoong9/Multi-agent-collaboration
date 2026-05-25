@@ -19,8 +19,12 @@ def build_workflow_graph():
     graph.add_node("route_after_code_audit", nodes.route_after_code_audit)
     graph.add_node("approval_web_reverify", nodes.approval_web_reverify)
     graph.add_node("web_reverify", nodes.web_reverify)
+    graph.add_node("social_context_review", nodes.social_context_review)
+    graph.add_node("approval_social_context", nodes.approval_social_context)
     graph.add_node("approval_social_engineering", nodes.approval_social_engineering)
-    graph.add_node("social_engineering_prepare", nodes.social_engineering_prepare)
+    graph.add_node("social_target_analysis", nodes.social_target_analysis)
+    graph.add_node("approval_email_generation", nodes.approval_email_generation)
+    graph.add_node("social_email_generation", nodes.social_email_generation)
     graph.add_node("approval_gophish_create", nodes.approval_gophish_create)
     graph.add_node("gophish_create", nodes.gophish_create)
     graph.add_node("approval_mail_send", nodes.approval_mail_send)
@@ -52,13 +56,29 @@ def build_workflow_graph():
         _gate_next_after_web_reverify,
         {"wait": END, "next": "web_reverify", "end": END},
     )
-    graph.add_edge("web_reverify", "approval_social_engineering")
+    graph.add_edge("web_reverify", "social_context_review")
+    graph.add_conditional_edges(
+        "social_context_review",
+        _gate_after_social_context_review,
+        {"wait": END, "next": "approval_social_engineering", "end": END},
+    )
+    graph.add_conditional_edges(
+        "approval_social_context",
+        _gate_after_social_context,
+        {"wait": END, "next": "social_target_analysis", "end": END},
+    )
     graph.add_conditional_edges(
         "approval_social_engineering",
         _gate_next_after_social,
-        {"wait": END, "next": "social_engineering_prepare", "end": END},
+        {"wait": END, "next": "social_target_analysis", "end": END},
     )
-    graph.add_edge("social_engineering_prepare", "approval_gophish_create")
+    graph.add_edge("social_target_analysis", "approval_email_generation")
+    graph.add_conditional_edges(
+        "approval_email_generation",
+        _gate_next_after_email_generation,
+        {"wait": END, "next": "social_email_generation", "end": END},
+    )
+    graph.add_edge("social_email_generation", "approval_gophish_create")
     graph.add_conditional_edges(
         "approval_gophish_create",
         _gate_next_after_gophish_create,
@@ -89,8 +109,20 @@ def _gate_next_after_web_reverify(state: MultiAgentState) -> str:
     return _gate_outcome(state, "web_reverify")
 
 
+def _gate_after_social_context_review(state: MultiAgentState) -> str:
+    return _gate_outcome(state, "approval_social_engineering")
+
+
+def _gate_after_social_context(state: MultiAgentState) -> str:
+    return _gate_outcome(state, "social_target_analysis")
+
+
 def _gate_next_after_social(state: MultiAgentState) -> str:
-    return _gate_outcome(state, "social_engineering_prepare")
+    return _gate_outcome(state, "social_target_analysis")
+
+
+def _gate_next_after_email_generation(state: MultiAgentState) -> str:
+    return _gate_outcome(state, "social_email_generation")
 
 
 def _gate_next_after_gophish_create(state: MultiAgentState) -> str:

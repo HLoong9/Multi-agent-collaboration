@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 
 from app.storage.repository import OrchestratorRepository
+from app.services.workflow_service import WorkflowService
 
 
 class ApprovalManager:
@@ -33,4 +34,6 @@ class ApprovalManager:
                 message=f"approval {status}",
                 payload={"approval_id": str(entity.id), "decision": decision},
             )
+            await WorkflowService(self.repo).resume_after_approval(entity.id)
+            entity = await self.repo.get_approval(approval_id)
         return entity

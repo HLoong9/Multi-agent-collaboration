@@ -31,12 +31,12 @@ def test_mock_closed_loop_acceptance() -> None:
     assert state["current_step"] == "completed"
 
     approval_actions = {item["action_type"] for item in state["approvals"]}
-    assert {"code_audit", "web_reverify", "gophish_create", "mail_send"}.issubset(
+    assert {"code_audit", "web_reverify", "social_engineering", "email_generation", "gophish_create", "mail_send"}.issubset(
         approval_actions
     )
 
     artifact_types = {item["artifact_type"] for item in state["artifacts"]}
-    assert {"source_snapshot", "audit_report", "mail_draft"}.issubset(artifact_types)
+    assert {"source_snapshot", "audit_report", "target_analysis", "mail_draft"}.issubset(artifact_types)
 
     finding_sources = {item["source"] for item in state["findings"]}
     assert {"web_pentest", "web_reverify", "code_audit"}.issubset(finding_sources)
