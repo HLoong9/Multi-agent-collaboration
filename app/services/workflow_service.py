@@ -13,7 +13,6 @@ from app.services.llm_advisor import LLMAdvisor, LLMAdvisorError, fallback_code_
 from app.services.policy_engine import PolicyEngine
 from app.services.report_builder import ReportBuilder
 from app.services.simulated_agents import (
-    simulate_code_audit,
     simulate_social_engineering,
     simulate_web_initial_scan,
     simulate_web_reverify,
@@ -272,18 +271,40 @@ class WorkflowService:
         await self.repo.set_root_task_step(task.id, status="running", current_step="approval_code_audit")
 
     async def _run_code_audit(self, root_task_id: uuid.UUID) -> None:
+        task = await self.repo.get_root_task(root_task_id)
         artifacts = await self.repo.list_artifacts(root_task_id)
-        artifact_refs = [
-            item.artifact_ref
-            for item in artifacts
-            if item.artifact_type == "source_snapshot"
-        ]
+        artifact_refs = self._code_audit_artifact_refs(
+            [
+                item.artifact_ref
+                for item in artifacts
+                if item.artifact_type == "source_snapshot"
+            ]
+        )
         payload = {
             "root_task_id": str(root_task_id),
-            "artifact_refs": artifact_refs,
+            "parent_task_id": None,
+            "task_type": "audit_source_artifact",
+            "input": {
+                "artifact_refs": artifact_refs,
+                "audit_focus": [
+                    "routes",
+                    "auth",
+                    "injection",
+                    "file_upload",
+                    "sensitive_config",
+                ],
+                "target_mapping": {"base_url": task.target_url if task else ""},
+            },
+            "context": {
+                "auth_scope": task.auth_scope if task else {},
+                "policy": {
+                    "allow_secret_exfiltration": False,
+                    "allow_destructive_test": False,
+                },
+            },
             "requested_outputs": ["audit_report", "findings", "suggested_actions"],
         }
-        response = simulate_code_audit(payload)
+        response = await self.gateway.execute("code_audit", payload)
         await self._store_agent_response(
             root_task_id=root_task_id,
             agent_type="code_audit",
@@ -292,6 +313,12 @@ class WorkflowService:
         )
         await self._record_code_audit_llm_advice(root_task_id, response)
         await self.repo.set_root_task_step(root_task_id, status="running", current_step="approval_web_reverify")
+
+    def _code_audit_artifact_refs(self, artifact_refs: list[str]) -> list[str]:
+        configured_ref = self.settings.code_audit_source_ref.strip()
+        if configured_ref:
+            return [configured_ref]
+        return artifact_refs
 
     async def _record_code_audit_llm_advice(
         self,

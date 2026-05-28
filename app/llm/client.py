@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -21,13 +22,19 @@ class LLMClient:
         base_url: str | None = None,
         api_key: str | None = None,
         model: str | None = None,
-        timeout_seconds: int = 60,
+        timeout_seconds: int | None = None,
     ) -> None:
         settings = get_settings()
-        self.base_url = (base_url or settings.llm_base_url).rstrip("/")
+        self.base_url = self._normalize_base_url((base_url or settings.llm_base_url).rstrip("/"))
         self.api_key = api_key if api_key is not None else settings.llm_api_key
         self.model = model or settings.llm_model
-        self.timeout_seconds = timeout_seconds
+        self.timeout_seconds = timeout_seconds or settings.llm_timeout_seconds
+
+    def _normalize_base_url(self, base_url: str) -> str:
+        parsed = urlparse(base_url)
+        if parsed.port == 11434 and not parsed.path.rstrip("/").endswith("/v1"):
+            return f"{base_url}/v1"
+        return base_url
 
     async def chat_json(
         self,

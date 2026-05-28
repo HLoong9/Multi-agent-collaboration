@@ -7,6 +7,7 @@ from app.gateway.agent_gateway import AgentGateway
 from app.gateway.registry import AgentRegistry
 from app.schemas.tasks import TaskCreateRequest
 from app.services.workflow_service import WorkflowService
+from app.gateway.schemas import AgentTaskResponse
 
 
 class InMemoryRepo:
@@ -186,6 +187,33 @@ class InMemoryRepo:
         return self.report
 
 
+class RecordingGateway:
+    def __init__(self) -> None:
+        self.calls = []
+
+    async def execute(self, agent_type: str, payload: dict) -> AgentTaskResponse:
+        self.calls.append((agent_type, payload))
+        return AgentTaskResponse.model_validate(
+            {
+                "task_id": "real-code-task-1",
+                "status": "completed",
+                "summary": "real code audit done",
+                "findings": [
+                    {
+                        "source": "code_audit",
+                        "severity": "high",
+                        "title": "real finding",
+                        "detail": "real detail",
+                        "evidence": {},
+                    }
+                ],
+                "artifacts": [],
+                "suggested_actions": [],
+                "errors": [],
+            }
+        )
+
+
 @pytest.mark.asyncio
 async def test_workflow_service_runs_api_level_simulated_loop() -> None:
     repo = InMemoryRepo()
@@ -230,3 +258,31 @@ async def test_workflow_service_runs_api_level_simulated_loop() -> None:
     assert any(event.event_type == "social_context_assessed" for event in repo.events)
     assert repo.report is not None
     assert repo.report.status == "generated"
+
+
+@pytest.mark.asyncio
+async def test_run_code_audit_uses_gateway_with_configured_source_ref() -> None:
+    repo = InMemoryRepo()
+    root_task = await repo.create_root_task(
+        target_url="http://web2.test.local",
+        exercise_goal="real code audit",
+        auth_scope={"allowed_domains": ["test.local"]},
+        created_by="tester",
+    )
+    gateway = RecordingGateway()
+    service = WorkflowService(repo, gateway=gateway)
+    service.settings.llm_enabled = False
+    service.settings.code_audit_source_ref = "H:/Soical_agent/code_audit_agent/temp/php测试"
+
+    await service._run_code_audit(root_task.id)
+
+    assert len(gateway.calls) == 1
+    agent_type, payload = gateway.calls[0]
+    assert agent_type == "code_audit"
+    assert payload["task_type"] == "audit_source_artifact"
+    assert payload["input"]["artifact_refs"] == ["H:/Soical_agent/code_audit_agent/temp/php测试"]
+    assert payload["input"]["target_mapping"]["base_url"] == "http://web2.test.local"
+    assert payload["context"]["auth_scope"] == {"allowed_domains": ["test.local"]}
+    assert repo.agent_tasks[-1].response_payload["task_id"] == "real-code-task-1"
+    assert repo.findings[-1].title == "real finding"
+    assert repo.root_task.current_step == "approval_web_reverify"

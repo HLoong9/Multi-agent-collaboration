@@ -21,6 +21,8 @@ class _FakeResponse:
 
 
 class _FakeAsyncClient:
+    urls = []
+
     def __init__(self, *args, **kwargs):
         pass
 
@@ -31,6 +33,7 @@ class _FakeAsyncClient:
         return False
 
     async def post(self, url, json=None, headers=None):
+        self.urls.append(url)
         return _FakeResponse(
             {
                 "choices": [
@@ -108,6 +111,7 @@ class _LLMRepo:
 
 @pytest.mark.asyncio
 async def test_llm_client_parses_json_response(monkeypatch) -> None:
+    _FakeAsyncClient.urls = []
     monkeypatch.setattr("app.llm.client.httpx.AsyncClient", _FakeAsyncClient)
     client = LLMClient(base_url="http://fake/v1", api_key="k", model="m")
     data = await client.chat_json(
@@ -116,6 +120,20 @@ async def test_llm_client_parses_json_response(monkeypatch) -> None:
     )
     assert data["recommended_action"] == "start_web_reverify"
     assert data["target_agent"] == "web_pentest"
+
+
+@pytest.mark.asyncio
+async def test_llm_client_expands_ollama_root_to_openai_v1(monkeypatch) -> None:
+    _FakeAsyncClient.urls = []
+    monkeypatch.setattr("app.llm.client.httpx.AsyncClient", _FakeAsyncClient)
+    client = LLMClient(base_url="http://ollama.local:11434", api_key="", model="m")
+
+    await client.chat_json(
+        system_prompt="system",
+        user_payload={"hello": "world"},
+    )
+
+    assert _FakeAsyncClient.urls == ["http://ollama.local:11434/v1/chat/completions"]
 
 
 def test_llm_advice_model_round_trip() -> None:
@@ -127,6 +145,22 @@ def test_llm_advice_model_round_trip() -> None:
         action_payload={"endpoint": "/api/admin/export"},
     )
     assert advice.model_dump(mode="json")["recommended_action"] == "start_web_reverify"
+
+
+def test_llm_client_uses_configured_timeout(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.llm.client.get_settings",
+        lambda: SimpleNamespace(
+            llm_base_url="http://fake/v1",
+            llm_api_key="",
+            llm_model="m",
+            llm_timeout_seconds=123,
+        ),
+    )
+
+    client = LLMClient()
+
+    assert client.timeout_seconds == 123
 
 
 @pytest.mark.asyncio

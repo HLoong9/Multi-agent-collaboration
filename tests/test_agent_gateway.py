@@ -1,5 +1,3 @@
-import json
-
 import httpx
 import pytest
 
@@ -95,3 +93,52 @@ async def test_timeout_returns_recoverable_error() -> None:
 
     with pytest.raises(GatewayRecoverableError):
         await gateway.execute("web_pentest", {"target_url": "http://web1.demotech.local"})
+
+
+@pytest.mark.asyncio
+async def test_default_poll_budget_uses_timeout_and_interval() -> None:
+    registry = AgentRegistry(
+        {
+            "web_pentest": "http://127.0.0.1:9001",
+            "code_audit": "http://127.0.0.1:9002",
+            "social_engineering": "http://127.0.0.1:9003",
+        }
+    )
+    running_results = [
+        {
+            "task_id": "t1",
+            "status": "running",
+            "summary": "running",
+            "findings": [],
+            "artifacts": [],
+            "suggested_actions": [],
+            "errors": [],
+        }
+        for _ in range(25)
+    ]
+    client = _SequenceClient(
+        [
+            {"task_id": "t1"},
+            {"status": "started"},
+            *running_results,
+            {
+                "task_id": "t1",
+                "status": "completed",
+                "summary": "ok",
+                "findings": [],
+                "artifacts": [],
+                "suggested_actions": [],
+                "errors": [],
+            },
+        ]
+    )
+    gateway = AgentGateway(
+        registry=registry,
+        client=client,
+        timeout_seconds=1,
+        poll_interval_seconds=0.01,
+    )
+
+    result = await gateway.execute("code_audit", {"task_type": "audit_source_artifact"})
+
+    assert result.status == "completed"

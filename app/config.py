@@ -25,11 +25,13 @@ class Settings(BaseSettings):
     )
     web_agent_base_url: str = "http://127.0.0.1:8901"
     code_agent_base_url: str = "http://127.0.0.1:8902"
+    code_audit_source_ref: str = ""
     social_agent_base_url: str = "http://127.0.0.1:8888/api"
     llm_enabled: bool = True
     llm_model: str = "deepseek-r1:14b"
     llm_base_url: str = "http://172.16.0.235:11434"
     llm_api_key: str = ""
+    llm_timeout_seconds: int = 180
     llm_emit_suggested_actions: bool = True
     chat_db_timeout_seconds: float = 180.0
 

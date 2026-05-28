@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 
 import httpx
 
@@ -21,15 +22,18 @@ class AgentGateway:
         registry: AgentRegistry | None = None,
         *,
         timeout_seconds: int | None = None,
-        poll_attempts: int = 20,
+        poll_attempts: int | None = None,
         poll_interval_seconds: float = 1.0,
         client=None,
     ) -> None:
         self.registry = registry or AgentRegistry.from_settings()
         self.settings = get_settings()
         self.timeout_seconds = timeout_seconds or self.settings.agent_timeout_seconds
-        self.poll_attempts = poll_attempts
         self.poll_interval_seconds = poll_interval_seconds
+        self.poll_attempts = poll_attempts or max(
+            1,
+            math.ceil(self.timeout_seconds / self.poll_interval_seconds),
+        )
         self.client = client
 
     async def execute(self, agent_type: str, payload: dict) -> AgentTaskResponse:
