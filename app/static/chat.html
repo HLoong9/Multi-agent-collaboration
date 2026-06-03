@@ -6,654 +6,829 @@
   <title>多Agent协同助手</title>
   <style>
     :root {
-      --bg: #eef2f6;
-      --panel: #ffffff;
-      --text: #17202a;
-      --muted: #667085;
-      --line: #d9dee7;
-      --accent: #1f7a8c;
-      --accent-dark: #145c6a;
-      --user: #e7f3ff;
-      --assistant: #ffffff;
-      --danger: #b42318;
-      --ok: #067647;
-      --warn: #b54708;
+      --bg: #0d1117;
+      --bg2: #161b22;
+      --bg3: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --accent2: #79c0ff;
+      --green: #3fb950;
+      --red: #f85149;
+      --yellow: #d29922;
+      --purple: #bc8cff;
+      --orange: #ffa657;
+      --user-bubble: #1f3a52;
+      --assistant-bubble: #1c2128;
     }
 
-    * { box-sizing: border-box; }
-    html, body {
-      height: 100%;
-      overflow: hidden;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
     body {
-      margin: 0;
       background: var(--bg);
       color: var(--text);
-      font-family: Arial, "Microsoft YaHei", sans-serif;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
       font-size: 14px;
+      display: flex;
+      flex-direction: column;
     }
 
     header {
-      position: sticky;
-      top: 0;
-      background: rgba(255,255,255,0.95);
-      border-bottom: 1px solid var(--line);
-      padding: 16px 22px;
-      z-index: 2;
-      backdrop-filter: blur(8px);
-    }
-
-    header h1 {
-      margin: 0;
-      font-size: 20px;
-      letter-spacing: 0;
-    }
-
-    main {
-      display: grid;
-      grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.9fr);
-      gap: 16px;
-      padding: 16px;
-      max-width: 1600px;
-      margin: 0 auto;
-      height: calc(100vh - 74px);
-      overflow: hidden;
-    }
-
-    .panel, .card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-    }
-
-    .panel {
-      overflow: hidden;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
       display: flex;
-      flex-direction: column;
-      min-height: 0;
-      height: 100%;
-    }
-
-    .panel-head {
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--line);
-      font-weight: 700;
-    }
-
-    .chat-stream {
-      flex: 1;
-      overflow: auto;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      background: linear-gradient(180deg, #f9fbfd 0%, #f2f6fa 100%);
-    }
-
-    .bubble {
-      max-width: 84%;
-      padding: 12px 14px;
-      border-radius: 8px;
-      border: 1px solid var(--line);
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-      line-height: 1.55;
-    }
-
-    .bubble.user {
-      align-self: flex-end;
-      background: var(--user);
-      border-color: #cde2ff;
-    }
-
-    .bubble.assistant {
-      align-self: flex-start;
-      background: var(--assistant);
-    }
-
-    .bubble.system {
-      align-self: center;
-      max-width: 95%;
-      background: #f8fafc;
-      color: var(--muted);
-      border-style: dashed;
-      font-size: 13px;
-    }
-
-    .composer {
-      border-top: 1px solid var(--line);
-      padding: 14px;
-      display: grid;
-      gap: 10px;
-      background: #fff;
-    }
-
-    .composer textarea, .composer input {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 10px 12px;
-      font: inherit;
-      color: var(--text);
-      background: #fff;
-    }
-
-    .composer textarea {
-      min-height: 88px;
-      resize: vertical;
-    }
-
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    button {
-      border: 1px solid transparent;
-      border-radius: 8px;
-      padding: 9px 14px;
-      min-height: 38px;
-      font-weight: 700;
-      cursor: pointer;
-      background: var(--accent);
-      color: white;
-    }
-    button.secondary {
-      background: white;
-      color: var(--accent-dark);
-      border-color: var(--accent);
-    }
-    button.danger {
-      background: white;
-      color: var(--danger);
-      border-color: #f0b8b2;
-    }
-    button.small {
-      padding: 6px 10px;
-      min-height: 30px;
-      font-weight: 700;
-      border-radius: 8px;
-    }
-    button.ghost {
-      background: white;
-      color: var(--accent-dark);
-      border-color: var(--line);
-    }
-
-    .side {
-      display: grid;
-      grid-template-rows: 0.85fr 0.75fr 1.4fr;
-      gap: 16px;
-      min-height: 0;
-      height: 100%;
-    }
-
-    .card {
-      padding: 14px;
-      overflow: auto;
-      min-height: 0;
-    }
-
-    .card-title {
-      padding: 0 0 10px;
-      margin: 0 0 10px;
-      border-bottom: 1px solid var(--line);
-      font-weight: 700;
-    }
-
-    .grid {
-      display: grid;
-      gap: 10px;
-    }
-
-    .kv {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 10px;
-      background: #fbfcfe;
-    }
-    .kv span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-    .kv strong { display: block; overflow-wrap: anywhere; }
-
-    .chip {
-      display: inline-flex;
       align-items: center;
-      min-height: 24px;
-      border-radius: 999px;
-      padding: 2px 10px;
-      font-size: 12px;
-      font-weight: 700;
-      background: #e8f3f6;
-      color: var(--accent-dark);
+      gap: 12px;
+      flex-shrink: 0;
     }
-    .chip.ok { background: #dcfae6; color: var(--ok); }
-    .chip.warn { background: #fff1d6; color: var(--warn); }
-    .chip.danger { background: #ffe4e0; color: var(--danger); }
+    .logo { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #1a3a5c, #2d1b69); display: grid; place-items: center; font-weight: 700; }
+    h1 { font-size: 16px; font-weight: 600; }
+    .subtitle { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .status-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--red); margin-left: auto; box-shadow: 0 0 8px var(--red); }
+    .status-dot.connected { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
 
-    .alert {
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 10px 12px;
-      background: #fff;
-      margin-top: 10px;
-    }
-    .alert.danger {
-      border-color: #f0b8b2;
-      background: #ffe4e0;
-      color: #7a271a;
-    }
-    .alert.warn {
-      border-color: #f5d0a5;
-      background: #fff1d6;
-      color: #7a2e0e;
-    }
-    .alert.info {
-      border-color: #c7d7fe;
-      background: #eef4ff;
-      color: #1d3b8f;
-    }
-    .alert summary {
-      cursor: pointer;
-      font-weight: 700;
-    }
-    .hidden { display: none; }
+    .layout { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+    .chat-panel { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; scroll-behavior: smooth; }
+    .messages::-webkit-scrollbar, .side-scroll::-webkit-scrollbar { width: 6px; }
+    .messages::-webkit-scrollbar-thumb, .side-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-    .mini-list {
-      display: grid;
-      gap: 8px;
-      margin-top: 10px;
-    }
+    .msg { display: flex; gap: 10px; align-items: flex-start; max-width: 100%; }
+    .msg.user { flex-direction: row-reverse; }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--border); flex-shrink: 0; color: var(--text); font-size: 12px; }
+    .avatar.user-av { background: var(--user-bubble); }
+    .avatar.ai-av { background: linear-gradient(135deg, #1a3a5c, #2d1b69); }
+    .bubble { background: var(--assistant-bubble); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; max-width: calc(100% - 50px); line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+    .msg.user .bubble { background: var(--user-bubble); border-color: #1a4a6b; }
+    .msg.system .bubble { color: var(--muted); border-style: dashed; }
 
-    .mini-item {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 10px;
-      background: #fff;
-    }
+    .tool-card { border-left: 3px solid var(--accent); background: #111826; }
+    .tool-title { color: var(--accent2); font-weight: 600; margin-bottom: 6px; }
+    .tool-meta { color: var(--muted); font-size: 12px; font-family: Consolas, "Courier New", monospace; }
+    .tool-overview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 10px 0; }
+    .tool-stat { background: rgba(88, 166, 255, .08); border: 1px solid rgba(88, 166, 255, .18); border-radius: 8px; padding: 8px 10px; }
+    .tool-stat .k { color: var(--muted); font-size: 11px; }
+    .tool-stat .v { color: var(--text); font-weight: 700; margin-top: 2px; }
+    .tool-list { display: grid; gap: 8px; margin-top: 8px; }
+    .tool-item { background: rgba(33, 38, 45, .72); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+    .tool-item-title { display: flex; align-items: center; gap: 8px; color: var(--text); font-weight: 600; }
+    .tool-empty { color: var(--muted); margin-top: 8px; }
 
+    .thinking { display: none; align-items: center; gap: 8px; color: var(--purple); padding: 8px 20px; font-size: 12px; }
+    .thinking.active { display: flex; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--purple); animation: pulse 1.2s infinite ease-in-out; }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes pulse { 0%, 80%, 100% { transform: scale(0.5); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
+
+    .typing-cursor { display: inline-block; width: 2px; height: 1em; background: var(--accent); margin-left: 2px; vertical-align: text-bottom; animation: blink-cursor 0.6s step-end infinite; }
+    @keyframes blink-cursor { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+    .suggestions { padding: 10px 20px; display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--border); background: var(--bg2); }
+    .pill { background: var(--bg3); border: 1px solid var(--border); color: var(--muted); border-radius: 999px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+    .pill:hover { color: var(--accent); border-color: var(--accent); }
+
+    .input-area { background: var(--bg2); border-top: 1px solid var(--border); padding: 14px 20px; flex-shrink: 0; }
+    .input-wrapper { display: flex; gap: 10px; align-items: flex-end; background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; }
+    .input-wrapper:focus-within { border-color: var(--accent); }
+    textarea { flex: 1; background: none; border: none; color: var(--text); font: inherit; resize: none; outline: none; max-height: 130px; min-height: 24px; line-height: 1.5; }
+    textarea::placeholder { color: var(--muted); }
+    button { border: 1px solid transparent; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    .send-btn { width: 36px; height: 36px; background: var(--accent); color: #0d1117; }
+    .btn { background: var(--bg3); border-color: var(--border); color: var(--text); padding: 8px 14px; }
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+    .btn.danger { color: var(--red); border-color: #6b2a2a; }
+    .hint { color: var(--muted); font-size: 11px; margin-top: 6px; display: flex; gap: 14px; }
+
+    .side-panel { width: 430px; background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; min-height: 0; }
+    .side-scroll { overflow-y: auto; min-height: 0; flex: 1; }
+    .side-header { padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--border); }
+    .side-section { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    .side-row { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; padding: 4px 0; }
+    .side-row .k { color: var(--muted); }
+    .side-row .v { color: var(--text); text-align: right; word-break: break-word; }
+    .side-input { width: 100%; margin-top: 8px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 8px 10px; font: inherit; }
+    .side-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+    .chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 9px; font-size: 11px; font-weight: 700; background: #1a2b3d; color: var(--accent2); }
+    .chip.ok { background: rgba(63,185,80,.15); color: var(--green); }
+    .chip.warn { background: rgba(210,153,34,.15); color: var(--yellow); }
+    .chip.danger { background: rgba(248,81,73,.15); color: var(--red); }
+
+    .history-item, .result-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+    .history-title, .result-title { color: var(--accent2); font-weight: 700; margin-bottom: 6px; }
     .muted { color: var(--muted); }
-    .mono { font-family: Consolas, "Courier New", monospace; overflow-wrap: anywhere; }
+    .mono { font-family: Consolas, "Courier New", monospace; word-break: break-word; }
+    .raw { margin-top: 8px; color: var(--muted); font-size: 11px; }
+    summary { cursor: pointer; }
 
-    .confirm-box {
-      border: 1px solid #f5c542;
-      background: #fff9ea;
-      border-radius: 8px;
-      padding: 12px;
-      display: grid;
-      gap: 8px;
-    }
+    .severity-critical, .severity-high { border-color: rgba(248,81,73,.55); }
+    .severity-medium { border-color: rgba(210,153,34,.55); }
 
-    .confirm-title {
-      font-weight: 700;
-    }
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,.68); display: none; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+    .modal.open { display: flex; }
+    .dialog { width: min(680px, 100%); background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 18px 60px rgba(0,0,0,.45); overflow: hidden; }
+    .dialog.danger { border-color: var(--red); }
+    .dialog-head { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+    .dialog-title { font-size: 16px; font-weight: 700; }
+    .dialog-body { padding: 16px 20px; display: grid; gap: 10px; }
+    .dialog-actions { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #010409; border: 1px solid var(--border); border-radius: 8px; padding: 10px; color: var(--text); max-height: 260px; overflow: auto; }
 
-    @media (max-width: 1100px) {
-      main { grid-template-columns: 1fr; }
-      .bubble { max-width: 100%; }
+    @media (max-width: 980px) {
+      .side-panel { width: 100%; max-height: 48vh; border-left: 0; border-top: 1px solid var(--border); }
+      .layout { flex-direction: column; }
+      .bubble { max-width: calc(100% - 42px); }
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>多Agent协同助手</h1>
+    <div class="logo">OA</div>
+    <div>
+      <h1>多Agent协同助手</h1>
+      <div class="subtitle">Orchestrator Console / 自动流程与手动 Agent 调度</div>
+    </div>
+    <div class="status-dot" id="statusDot" title="连接状态"></div>
+    <div class="header-actions"><button class="btn" id="clearBtn">清空对话</button></div>
   </header>
 
-  <main>
-    <section class="panel">
-      <div class="panel-head">自然语言交互</div>
-      <div id="chatStream" class="chat-stream"></div>
-      <div class="composer">
-        <input id="taskId" placeholder="root_task_id，可留空，首次输入自然语言会创建任务" class="mono" />
-        <textarea id="messageInput" placeholder="例如：帮我对 http://web1.demotech.local 做一次授权演练；或输入：批准继续 / 拒绝"></textarea>
-        <div class="actions">
-          <button id="sendBtn">发送</button>
-          <button id="approveBtn" class="secondary">批准当前高危动作</button>
-          <button id="rejectBtn" class="danger">拒绝当前高危动作</button>
-        </div>
+  <div class="layout">
+    <main class="chat-panel">
+      <div class="messages" id="messages"></div>
+      <div class="thinking" id="thinking"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span id="thinkingText">正在处理...</span></div>
+      <div class="suggestions">
+        <button class="pill" data-suggest="帮我对 http://web1.demotech.local 做一次授权演练">自动化演练</button>
+        <button class="pill" data-suggest="调用 Web渗透Agent 扫描 http://web1.demotech.local">调用 Web渗透Agent</button>
+        <button class="pill" data-suggest="调用代码审计Agent 审计当前源码产物">调用代码审计Agent</button>
+        <button class="pill" data-suggest="调用 Phishing Agent 生成邮件草稿">调用 Phishing Agent</button>
+        <button class="pill" data-suggest="查看最新结果">查看最新结果</button>
       </div>
-    </section>
-
-    <div class="side">
-      <section class="card">
-        <div class="card-title">任务概览</div>
-        <div class="grid">
-          <div class="kv"><span>状态</span><strong id="taskStatus">-</strong></div>
-          <div class="kv"><span>当前步骤</span><strong id="taskStep">-</strong></div>
-          <div class="kv"><span>目标</span><strong id="taskTarget">-</strong></div>
-          <div class="kv"><span>待确认动作</span><strong id="taskPending">-</strong></div>
+      <div class="input-area">
+        <div class="input-wrapper">
+          <textarea id="messageInput" placeholder="输入任务描述，Enter 发送，Shift+Enter 换行..." rows="1"></textarea>
+          <button class="send-btn" id="sendBtn" title="发送">&gt;</button>
         </div>
-      </section>
+        <div class="hint"><span>Enter 发送</span><span>Shift+Enter 换行</span><span id="sessionHint"></span></div>
+      </div>
+    </main>
 
-      <section class="card">
-        <div class="card-title">高危确认</div>
-        <div id="confirmBox" class="confirm-box">
-          <div class="confirm-title">暂无待确认动作</div>
-          <div class="muted">流程遇到高风险步骤时，会在这里显示确认卡片。</div>
+    <aside class="side-panel">
+      <div class="side-scroll">
+        <div class="side-header">任务状态</div>
+        <div class="side-section">
+          <div class="side-row"><span class="k">root_task_id</span><span class="v mono" id="rootTaskId">-</span></div>
+          <div class="side-row"><span class="k">模式</span><span class="v" id="modeValue">manual</span></div>
+          <div class="side-row"><span class="k">当前 Agent</span><span class="v" id="agentValue">-</span></div>
+          <div class="side-row"><span class="k">状态</span><span class="v" id="taskStatus">-</span></div>
+          <div class="side-row"><span class="k">待确认</span><span class="v" id="pendingValue">-</span></div>
+          <input class="side-input mono" id="rootTaskInput" placeholder="粘贴 root_task_id 后加载历史任务" />
+          <div class="side-actions"><button class="btn" id="loadTaskBtn">加载任务状态</button></div>
         </div>
-      </section>
+        <div class="side-header">Agent 调用历史</div>
+        <div class="side-section" id="historyList"><div class="muted">暂无调用记录</div></div>
+        <div class="side-header">最新结果</div>
+        <div class="side-section" id="resultSections"><div class="muted">暂无结果</div></div>
+      </div>
+    </aside>
+  </div>
 
-      <section class="card">
-        <div class="card-title">最新结果</div>
-        <div class="mini-list" id="resultList"></div>
-      </section>
+  <div class="modal" id="confirmModal">
+    <div class="dialog" id="confirmDialog">
+      <div class="dialog-head">
+        <div class="dialog-title" id="confirmTitle">是否执行下一步建议</div>
+        <div class="muted" id="confirmSubtitle">等待确认</div>
+      </div>
+      <div class="dialog-body" id="confirmBody"></div>
+      <div class="dialog-actions">
+        <button class="btn" id="deferBtn">稍后处理</button>
+        <button class="btn danger" id="rejectBtn">拒绝</button>
+        <button class="btn" id="approveBtn">确认执行</button>
+      </div>
     </div>
-  </main>
+  </div>
 
   <script>
     const state = {
-      root_task_id: "",
-      task: null,
-      pending_approval: null,
-      approvals: [],
-      events: [],
-      findings: [],
-      artifacts: [],
-      report: null,
+      ws: null,
+      sessionId: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      rootTaskId: "",
+      mode: "manual",
+      currentAgent: "-",
+      pendingApproval: null,
+      submittedActionIds: new Set(),
+      resultSnapshot: null,
+      agentRuns: [],
+      backendAgentRuns: [],
+      reportedAgentResults: new Set(),
+      reconnectTimer: null,
+      workflowPollTimer: null,
     };
 
     const agentNames = {
       web_pentest: "Web渗透Agent",
       web_reverify: "Web渗透Agent",
       code_audit: "代码审计Agent",
-      social_engineering: "社会工程Agent",
+      social_engineering: "Phishing Agent",
     };
-
-    const actionNames = {
-      code_audit: "代码审计Agent：对 Web渗透Agent 发现的源码快照进行代码审计",
-      web_reverify: "Web渗透Agent：根据代码审计结果进行 Web 二次验证",
-      social_engineering: "社会工程Agent：分析目标并生成目标选择建议",
-      email_generation: "社会工程Agent：根据已确认目标生成邮件草稿",
-      gophish_create: "社会工程Agent：创建 Gophish 演练活动",
-      mail_send: "社会工程Agent：发送授权演练邮件",
-    };
-
+    const severityText = { critical: "严重", high: "高危", medium: "中危", low: "低危", info: "信息" };
+    const activeAgentStatuses = new Set(["created", "started", "queued", "running", "pending"]);
+    const statusText = { created: "已创建", started: "已启动", planned: "准备调用", queued: "排队中", running: "执行中", pending: "等待中", completed: "已完成", failed: "失败", rejected: "已拒绝", waiting_approval: "等待确认" };
     const $ = (id) => document.getElementById(id);
+    const escapeHtml = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 
-    function escapeHtml(value) {
-      return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+    function addMessage(kind, title, content, extraClass = "") {
+      const row = document.createElement("div");
+      row.className = `msg ${kind}`;
+      const avatar = kind === "user" ? "你" : kind === "system" ? "SYS" : "OA";
+      row.innerHTML = `<div class="avatar ${kind === "user" ? "user-av" : "ai-av"}">${avatar}</div><div class="bubble ${extraClass}">${title ? `<strong>${escapeHtml(title)}</strong><br>` : ""}${escapeHtml(content)}</div>`;
+      $("messages").appendChild(row);
+      $("messages").scrollTop = $("messages").scrollHeight;
+      return row.querySelector(".bubble");
     }
 
-    function bubble(kind, title, content) {
-      const div = document.createElement("div");
-      div.className = `bubble ${kind}`;
-      div.innerHTML = title ? `<strong>${escapeHtml(title)}</strong><br>${escapeHtml(content)}` : escapeHtml(content);
-      $("chatStream").appendChild(div);
-      $("chatStream").scrollTop = $("chatStream").scrollHeight;
+    let typingQueue = [];
+    let isTyping = false;
+
+    function addTypingMessage(kind, title, content, extraClass = "") {
+      const row = document.createElement("div");
+      row.className = `msg ${kind}`;
+      const avatar = kind === "user" ? "你" : "OA";
+      row.innerHTML = `<div class="avatar ${kind === "user" ? "user-av" : "ai-av"}">${avatar}</div><div class="bubble ${extraClass}">${title ? `<strong>${escapeHtml(title)}</strong><br>` : ""}<span class="typing-text"></span><span class="typing-cursor"></span></div>`;
+      $("messages").appendChild(row);
+      $("messages").scrollTop = $("messages").scrollHeight;
+      const textSpan = row.querySelector(".typing-text");
+      const cursorSpan = row.querySelector(".typing-cursor");
+      const fullText = content || "";
+      typeText(textSpan, cursorSpan, fullText);
     }
 
-    function setConfirmBox(item) {
-      const el = $("confirmBox");
-      if (!item) {
-        el.innerHTML = `
-          <div class="confirm-title">暂无待确认动作</div>
-          <div class="muted">流程遇到高风险步骤时，会在这里显示确认卡片。</div>
-        `;
-        return;
+    function typeText(textSpan, cursorSpan, fullText) {
+      typingQueue.push({ textSpan, cursorSpan, fullText, index: 0 });
+      if (!isTyping) processTypingQueue();
+    }
+
+    function processTypingQueue() {
+      if (typingQueue.length === 0) { isTyping = false; return; }
+      isTyping = true;
+      const job = typingQueue[0];
+      const chunkSize = Math.max(1, Math.floor(job.fullText.length / 60));
+      function step() {
+        if (job.index >= job.fullText.length) {
+          job.cursorSpan.remove();
+          typingQueue.shift();
+          processTypingQueue();
+          return;
+        }
+        const end = Math.min(job.index + chunkSize, job.fullText.length);
+        job.textSpan.textContent = job.fullText.slice(0, end);
+        job.index = end;
+        $("messages").scrollTop = $("messages").scrollHeight;
+        setTimeout(step, 18);
       }
-      const actionText = actionNames[item.action_type] || item.action_type;
-      el.innerHTML = `
-        <div class="confirm-title">需要确认：${escapeHtml(actionText)}</div>
-        <div class="muted">状态：${escapeHtml(item.status)}</div>
-        <div class="mono">${escapeHtml(item.id)}</div>
-        <div class="muted">${escapeHtml(item.decision_comment || item.decision_by || "等待确认")}</div>
-      `;
+      step();
     }
 
-    async function request(path, options = {}) {
-      const resp = await fetch(path, {
-        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-        ...options,
-      });
-      if (!resp.ok) {
-        const text = await resp.text();
-        throw new Error(`${resp.status} ${resp.statusText}: ${text}`);
-      }
-      return resp.json();
+    function addToolCard(title, meta, payload) {
+      const row = document.createElement("div");
+      row.className = "msg assistant";
+      row.innerHTML = `<div class="avatar ai-av">AG</div><div class="bubble tool-card"><div class="tool-title">${escapeHtml(title)}</div><div class="tool-meta">${escapeHtml(meta)}</div>${payload ? `<details class="raw"><summary>查看参数</summary><pre>${escapeHtml(JSON.stringify(payload, null, 2))}</pre></details>` : ""}</div>`;
+      $("messages").appendChild(row);
+      $("messages").scrollTop = $("messages").scrollHeight;
     }
 
-    async function sendMessage() {
-      const message = $("messageInput").value.trim();
-      if (!message) return;
-      const root_task_id = $("taskId").value.trim() || null;
-      bubble("user", "", message);
-      $("messageInput").value = "";
+    function addAgentResultCard(agentType, data = {}, sections = {}, run = null) {
+      const row = document.createElement("div");
+      row.className = "msg assistant";
+      const title = `${agentNames[agentType] || agentType || "Agent"} 返回结果`;
+      row.innerHTML = `<div class="avatar ai-av">AG</div><div class="bubble tool-card"><div class="tool-title">${escapeHtml(title)}</div>${renderAgentReport(agentType, data, sections, run)}</div>`;
+      $("messages").appendChild(row);
+      $("messages").scrollTop = $("messages").scrollHeight;
+    }
 
-      const payload = {
-        message,
-        root_task_id,
-        created_by: "operator",
+    function renderAgentReport(agentType, data = {}, sections = {}, run = null) {
+      const findings = agentFindings(agentType, data, sections);
+      const artifacts = agentArtifacts(agentType, data, sections);
+      const actions = Array.isArray(data.suggested_actions) ? data.suggested_actions : [];
+      const errors = Array.isArray(data.errors) ? data.errors : [];
+      const summary = chineseSummary(agentType, data.summary || run?.summary || run?.message || "", findings, artifacts, actions);
+      const stats = [
+        ["执行状态", statusLabel(data.status || run?.status || "completed")],
+        ["结果摘要", summary],
+        ["风险/线索", `${findings.length} 条`],
+        ["产物", `${artifacts.length} 个`],
+      ];
+      const html = [
+        `<div class="tool-meta">${escapeHtml(summary)}</div>`,
+        `<div class="tool-overview">${stats.map(([k, v]) => `<div class="tool-stat"><div class="k">${escapeHtml(k)}</div><div class="v">${escapeHtml(v)}</div></div>`).join("")}</div>`,
+        renderResultList("主要发现", findings, renderFindingLine),
+        renderResultList("产物结果", artifacts, renderArtifactLine),
+        renderResultList("下一步建议", actions, renderActionLine),
+      ];
+      if (errors.length) html.push(renderResultList("错误信息", errors, (item) => `<div class="tool-item"><div class="tool-item-title">${escapeHtml(item.error_type || "错误")}</div><div class="muted">${escapeHtml(item.message || item)}</div></div>`));
+      html.push(`<details class="raw"><summary>查看原始结果</summary><pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre></details>`);
+      return html.join("");
+    }
+
+    function renderResultList(title, items, renderer) {
+      if (!items.length) return `<div class="tool-empty">${escapeHtml(title)}：暂无</div>`;
+      return `<details class="raw" open><summary>${escapeHtml(title)}（${items.length}）</summary><div class="tool-list">${items.slice(0, 5).map(renderer).join("")}</div></details>`;
+    }
+
+    function renderFindingLine(item) {
+      return `<div class="tool-item"><div class="tool-item-title">${severityBadge(item.severity)}<span>${escapeHtml(item.title || "未命名发现")}</span></div><div class="muted">${escapeHtml(item.detail || "-")}</div></div>`;
+    }
+
+    function renderArtifactLine(item) {
+      const type = artifactTypeLabel(item.artifact_type || item.type || "artifact");
+      const ref = item.artifact_ref || item.detail || item.path || "-";
+      return `<div class="tool-item"><div class="tool-item-title"><span class="chip">${escapeHtml(type)}</span><span>${escapeHtml(item.title || type)}</span></div><div class="mono muted">${escapeHtml(ref)}</div></div>`;
+    }
+
+    function renderActionLine(item) {
+      const actionType = item.action_type || item.type || "下一步";
+      const reason = item.reason || item.action_payload?.reason || item.description || "-";
+      return `<div class="tool-item"><div class="tool-item-title"><span class="chip warn">${escapeHtml(actionTypeLabel(actionType))}</span></div><div class="muted">${escapeHtml(reason)}</div></div>`;
+    }
+
+    function setConnected(value) { $("statusDot").classList.toggle("connected", value); }
+    function setThinking(active, text = "正在处理...") { $("thinking").classList.toggle("active", active); $("thinkingText").textContent = text; }
+
+    function connectWs() {
+      const protocol = location.protocol === "https:" ? "wss" : "ws";
+      const ws = new WebSocket(`${protocol}://${location.host}/ws/orchestrator/${state.sessionId}`);
+      state.ws = ws;
+      ws.onopen = () => { setConnected(true); addMessage("system", "", "WebSocket 已连接。"); };
+      ws.onmessage = (event) => handleWsEvent(JSON.parse(event.data));
+      ws.onclose = () => {
+        setConnected(false);
+        addMessage("system", "", "WebSocket 已断开，正在尝试重连。可继续通过刷新状态查看历史任务。");
+        if (state.rootTaskId) loadRestState(state.rootTaskId).catch(() => {});
+        clearTimeout(state.reconnectTimer);
+        state.reconnectTimer = setTimeout(connectWs, 2000);
       };
-      const data = await request("/api/chat/message", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      if (data.root_task_id) {
-        $("taskId").value = data.root_task_id;
-        state.root_task_id = data.root_task_id;
-      }
-      renderResponse(data);
+      ws.onerror = () => setConnected(false);
     }
 
-    async function respondDecision(decisionText) {
-      const root_task_id = $("taskId").value.trim();
-      if (!root_task_id) {
-        bubble("system", "", "请先创建或加载一个任务。");
+    function sendUserInput() {
+      const content = $("messageInput").value.trim();
+      if (!content) return;
+      addMessage("user", "", content);
+      $("messageInput").value = "";
+      setThinking(true, "正在识别任务意图...");
+      const payload = { type: "user_input", content, root_task_id: state.rootTaskId || null };
+      if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+        state.ws.send(JSON.stringify(payload));
+      } else {
+        setThinking(false);
+        addMessage("system", "", "WebSocket 未连接，请稍后重试。");
+      }
+    }
+
+    function handleWsEvent(event) {
+      if (event.type !== "thinking") setThinking(false);
+      if (event.type === "thinking") { setThinking(true, event.message || "正在处理..."); return; }
+      if (event.type === "assistant_chunk") { addTypingMessage("assistant", "调度器", event.content || ""); return; }
+      if (event.type === "agent_call_planned") {
+        if (event.payload && event.payload.root_task_id) {
+          state.rootTaskId = event.payload.root_task_id;
+          startWorkflowPolling(state.rootTaskId);
+        }
+        state.currentAgent = event.agent_type || "-";
+        state.agentRuns.unshift({ agent_type: event.agent_type, status: "planned", summary: event.reason || "准备调用" });
+        addToolCard(`准备调用 ${agentNames[event.agent_type] || event.agent_type}`, event.reason || "", event.payload || {});
+        renderSide();
         return;
       }
-      const data = await request("/api/chat/message", {
-        method: "POST",
-        body: JSON.stringify({
-          message: decisionText,
-          root_task_id,
-          created_by: "operator",
-        }),
-      });
-      renderResponse(data);
+      if (event.type === "agent_progress") {
+        state.currentAgent = event.agent_type || state.currentAgent;
+        state.agentRuns.unshift({ agent_type: event.agent_type, status: event.status, summary: event.message || "执行中" });
+        renderSide();
+        return;
+      }
+      if (event.type === "agent_result") {
+        const data = event.data || {};
+        const run = { id: data.task_id, agent_type: event.agent_type, status: "completed", summary: data.summary || "已完成" };
+        state.agentRuns.unshift(run);
+        markAgentResultReported(run);
+        addAgentResultCard(event.agent_type, data, state.resultSnapshot?.sections || {}, run);
+        renderSide();
+        return;
+      }
+      if (event.type === "approval_required") {
+        state.pendingApproval = event.approval;
+        renderSide();
+        if (!hasActiveAgentRun()) showApprovalModal(event.approval);
+        return;
+      }
+      if (event.type === "result_snapshot") { state.resultSnapshot = event.data || {}; applySnapshot(event.data || {}); return; }
+      if (event.type === "error") { addMessage("system", "错误", event.message || "未知错误"); }
     }
 
-    function renderResponse(data) {
-      bubble("assistant", "调度器", data.reply || "已处理。");
-      state.root_task_id = data.root_task_id || state.root_task_id;
-      state.task = data.task || state.task;
-      state.pending_approval = data.pending_approval || null;
-      state.approvals = data.approvals || state.approvals;
-      state.events = data.events || state.events;
-      state.findings = data.findings || state.findings;
-      state.artifacts = data.artifacts || state.artifacts;
-      state.report = data.report || state.report;
+    function applySnapshot(snapshot) {
+      state.rootTaskId = snapshot.root_task_id || state.rootTaskId;
+      state.mode = snapshot.mode || state.mode;
+      if (snapshot.task) state.task = snapshot.task;
+      emitCompletedAgentCardsFromSnapshot(snapshot);
+      if (Array.isArray(snapshot.agent_runs)) {
+        state.backendAgentRuns = snapshot.agent_runs;
+        state.agentRuns = mergeAgentRuns(snapshot.agent_runs, state.agentRuns);
+      }
+      const activeRun = getActiveAgentRun();
+      if (activeRun) state.currentAgent = activeRun.agent_type || state.currentAgent;
+      const pendingItems = (snapshot.pending_actions || []).filter((item) => {
+        const actionId = item.action_id || item.id || "";
+        return actionId && !state.submittedActionIds.has(actionId);
+      });
+      const pending = pendingItems.find((item) => ["pending", "proposed"].includes(String(item.status || "")));
+      state.pendingApproval = pending || null;
       renderSide();
-      renderResults();
-      setConfirmBox(state.pending_approval);
+      renderResults(snapshot.sections || {});
+      if (pending && !activeRun) {
+        showApprovalModal(pending);
+      } else if (activeRun) {
+        closeModal();
+      }
+    }
+
+    function getActiveAgentRun() {
+      const runs = state.backendAgentRuns.length ? state.backendAgentRuns : state.agentRuns;
+      return runs.find((item) => activeAgentStatuses.has(String(item.status || "").toLowerCase()));
+    }
+
+    function hasActiveAgentRun() {
+      return Boolean(getActiveAgentRun());
     }
 
     function renderSide() {
-      const task = state.task || {};
-      const statusClass = task.status === "completed" ? "ok" : task.status === "waiting_approval" ? "warn" : task.status === "rejected" ? "danger" : "";
-      const statusText = task.status === "waiting_approval" ? "等待审批" : task.status === "completed" ? "已完成" : task.status === "rejected" ? "已拒绝" : (task.status || "-");
-      $("taskStatus").innerHTML = `<span class="chip ${statusClass}">${escapeHtml(statusText)}</span>`;
-      $("taskStep").textContent = task.current_step ? `${task.current_step}（${stepLabel(task.current_step)}）` : "-";
-      $("taskTarget").textContent = task.target_url || "-";
-      $("taskPending").textContent = state.pending_approval ? (actionNames[state.pending_approval.action_type] || state.pending_approval.action_type) : "-";
+      $("rootTaskId").textContent = state.rootTaskId || "-";
+      $("modeValue").textContent = state.mode === "auto" ? "自动流程" : "手动调度";
+      $("agentValue").textContent = agentNames[state.currentAgent] || state.currentAgent || "-";
+      const status = state.task?.status || "-";
+      $("taskStatus").innerHTML = `<span class="chip ${status === "completed" ? "ok" : status === "waiting_approval" ? "warn" : ""}">${escapeHtml(statusLabel(status))}</span>`;
+      $("pendingValue").textContent = state.pendingApproval ? (state.pendingApproval.action_type || "待确认") : "-";
+      renderHistory();
     }
 
-    function stepLabel(step) {
-      const map = {
-        web_initial_scan: "Web初扫",
-        approval_code_audit: "代码审计（确认）",
-        code_audit: "代码审计",
-        approval_web_reverify: "Web二次验证（确认）",
-        web_reverify: "Web二次验证",
-        social_context_review: "社会工程上下文审查",
-        approval_social_context: "补充社会工程上下文（确认）",
-        approval_social_engineering: "社会工程目标分析（确认）",
-        social_target_analysis: "社会工程目标分析",
-        approval_email_generation: "邮件草稿生成（确认）",
-        social_email_generation: "邮件草稿生成",
-        approval_gophish_create: "Gophish活动创建（确认）",
-        gophish_create: "Gophish活动创建",
-        approval_mail_send: "邮件发送（确认）",
-        gophish_send: "邮件发送",
-        collect_exercise_results: "结果汇总",
-        build_report: "生成报告",
-        completed: "已完成",
+    function renderHistory() {
+      const list = state.agentRuns.slice(0, 12);
+      $("historyList").innerHTML = list.length ? list.map((item) => {
+        const details = [
+          item.phase ? `阶段：${escapeHtml(item.phase)}` : "",
+          item.external_task_id ? `Agent任务：${escapeHtml(item.external_task_id)}` : "",
+          item.updated_at ? `更新：${escapeHtml(formatTime(item.updated_at))}` : "",
+        ].filter(Boolean).join(" · ");
+        return `<div class="history-item"><div class="history-title">${escapeHtml(agentNames[item.agent_type] || item.agent_type || "Agent")}</div><div><span class="chip ${statusClass(item.status)}">${escapeHtml(statusLabel(item.status || "-"))}</span></div><div class="muted">${escapeHtml(chineseSummary(item.agent_type, item.message || item.summary || "", [], [], []))}</div>${details ? `<div class="muted mono">${details}</div>` : ""}</div>`;
+      }).join("") : `<div class="muted">暂无调用记录</div>`;
+    }
+
+    function statusClass(status) {
+      const value = String(status || "").toLowerCase();
+      if (value === "completed") return "ok";
+      if (["created", "started", "queued", "running", "pending"].includes(value)) return "warn";
+      if (["failed", "error", "rejected"].includes(value)) return "danger";
+      return "";
+    }
+
+    function formatTime(value) {
+      if (!value) return "";
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString();
+    }
+
+    function mergeAgentRuns(primary, secondary) {
+      const seen = new Set();
+      const merged = [];
+      const primaryTerminalAgents = new Set(
+        primary
+          .filter((item) => !activeAgentStatuses.has(String(item.status || "").toLowerCase()))
+          .map((item) => item.agent_type || "")
+          .filter(Boolean)
+      );
+      primary.concat(secondary || []).forEach((item) => {
+        const status = String(item.status || "").toLowerCase();
+        if (!item.id && primaryTerminalAgents.has(item.agent_type || "") && activeAgentStatuses.has(status)) return;
+        const key = item.id || `${item.agent_type || "agent"}:${item.status || ""}:${item.summary || ""}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        merged.push(item);
+      });
+      return merged;
+    }
+
+    function emitCompletedAgentCardsFromSnapshot(snapshot) {
+      const runs = Array.isArray(snapshot.agent_runs) ? snapshot.agent_runs : [];
+      runs.slice().reverse().forEach((run) => {
+        if (String(run.status || "").toLowerCase() !== "completed" || isAgentResultReported(run)) return;
+        markAgentResultReported(run);
+        addAgentResultCard(run.agent_type, { status: run.status, summary: run.summary || run.message || "" }, snapshot.sections || {}, run);
+      });
+    }
+
+    function agentResultKey(run = {}) {
+      if (run.id) return `id:${run.id}`;
+      return [run.agent_type || "agent", run.run_index ?? "", run.updated_at || "", run.summary || run.message || ""].join(":");
+    }
+
+    function isAgentResultReported(run) {
+      return state.reportedAgentResults.has(agentResultKey(run));
+    }
+
+    function markAgentResultReported(run) {
+      state.reportedAgentResults.add(agentResultKey(run));
+    }
+
+    function statusLabel(status) {
+      return statusText[String(status || "").toLowerCase()] || status || "-";
+    }
+
+    function artifactTypeLabel(type) {
+      const labels = {
+        source_snapshot: "源码快照",
+        audit_report: "审计报告",
+        vulnerability_leads: "漏洞线索",
+        code_structure_summary: "代码结构",
+        raw_result: "原始结果",
+        mail_draft: "邮件草稿",
+        gophish_campaign_draft: "活动草稿",
+        send_campaigns_result: "发送结果",
       };
-      return map[step] || step || "-";
+      return labels[type] || type;
     }
 
-    function severityRank(sev) {
-      const v = String(sev || "info").toLowerCase();
-      if (v === "critical") return 4;
-      if (v === "high") return 3;
-      if (v === "medium") return 2;
-      if (v === "low") return 1;
-      return 0;
+    function actionTypeLabel(type) {
+      const labels = {
+        code_audit: "代码审计",
+        start_code_audit: "代码审计",
+        web_reverify: "Web二次验证",
+        start_web_reverify: "Web二次验证",
+        social_engineering: "社会工程分析",
+        email_generation: "邮件生成",
+        gophish_create: "创建活动",
+        mail_send: "邮件发送",
+      };
+      return labels[type] || type;
     }
 
-    function renderResults() {
-      const blocks = [];
-
-      let latestAgentTaskId = "";
-      let latestAgentType = "";
-      for (let i = state.events.length - 1; i >= 0; i--) {
-        const ev = state.events[i] || {};
-        if (ev.event_type !== "agent_task_completed") continue;
-        const payload = ev.payload || {};
-        latestAgentTaskId = payload.agent_task_id || "";
-        const msg = String(ev.message || "");
-        latestAgentType = msg.replace(" completed", "").trim();
-        break;
-      }
-
-      const gatewayFallback = (state.events || []).slice().reverse().find((e) => e && e.event_type === "agent_gateway_call_fallback");
-      if (gatewayFallback) {
-        const p = gatewayFallback.payload || {};
-        const baseUrl = p.base_url || "-";
-        const msg = p.error_message || p.error_type || "unknown";
-        blocks.push(`
-          <div class="alert danger">
-            <div><strong>外部 Agent 调用失败</strong></div>
-            <div class="mono">Phishing Agent：${escapeHtml(baseUrl)}</div>
-            <div class="muted">已自动切换至本地模拟结果，演练将继续进行（功能受限）。</div>
-            <div class="mono">${escapeHtml(msg)}</div>
-          </div>
-        `);
-      }
-
-      const findings = state.findings || [];
-      if (findings.length) {
-        const shown = findings.slice(-20);
-        const high = shown.filter((f) => severityRank(f.severity) >= 3);
-        const medium = shown.filter((f) => severityRank(f.severity) === 2);
-        const info = shown.filter((f) => severityRank(f.severity) <= 1);
-        const line = (f) => escapeHtml(`- 【${agentNames[f.source] || f.source}】[${f.severity}] ${f.title}：${f.detail}`);
-        if (high.length) {
-          blocks.push(`
-            <div class="alert danger">
-              <div><strong>高危/严重发现（必须阅读）</strong></div>
-              <div class="mono">${high.map(line).join("<br>")}</div>
-            </div>
-          `);
-        }
-        if (medium.length) {
-          blocks.push(`
-            <details class="alert warn">
-              <summary>中危发现（${medium.length} 条，可展开）</summary>
-              <div class="mono">${medium.map(line).join("<br>")}</div>
-            </details>
-          `);
-        }
-        if (info.length) {
-          blocks.push(`
-            <details class="alert info">
-              <summary>信息级发现（${info.length} 条，默认隐藏）</summary>
-              <div class="mono">${info.map(line).join("<br>")}</div>
-            </details>
-          `);
-        }
-      }
-
-      const artifacts = state.artifacts || [];
-      const stepArtifacts = latestAgentTaskId ? artifacts.filter((a) => String(a.agent_task_id || "") === String(latestAgentTaskId)) : [];
-      const shownArtifacts = stepArtifacts.length ? stepArtifacts : artifacts;
-      if (shownArtifacts.length) {
-        const header = stepArtifacts.length
-          ? `本步产物（${agentNames[latestAgentType] || latestAgentType || "子Agent"} / ${shownArtifacts.length}）`
-          : `产物（共 ${shownArtifacts.length}）`;
-        blocks.push(`
-          <div class="mini-item">
-            <div><strong>${escapeHtml(header)}</strong></div>
-            <div class="muted mono">${shownArtifacts.map((a) => {
-              const meta = a.artifact_metadata || {};
-              const metaPreview = a.artifact_type === "mail_draft"
-                ? `草稿数：${Array.isArray(meta.drafts) ? meta.drafts.length : 0}`
-                : a.artifact_type === "gophish_campaign_draft"
-                  ? `目标数：${meta.target_count ?? "-"}，邮件数：${meta.mail_count ?? "-"}`
-                  : JSON.stringify(meta).slice(0, 240);
-              const rid = `artifact_ref_${String(a.id || Math.random()).replaceAll("-", "_")}`;
-              const btnText = `查看${a.title || a.artifact_type}`;
-              return `
-                <div style="margin-top:8px">
-                  ${escapeHtml(`- [${a.artifact_type}] ${a.title || "-"}`)}
-                  <button class="small ghost" data-ref-target="${escapeHtml(rid)}">${escapeHtml(btnText)}</button>
-                  <div id="${escapeHtml(rid)}" class="mono hidden">${escapeHtml(a.artifact_ref || "")}</div>
-                  <div class="muted">${escapeHtml(metaPreview)}</div>
-                </div>
-              `;
-            }).join("")}</div>
-          </div>
-        `);
-      }
-
-      const events = state.events || [];
-      if (events.length) {
-        const shown = events.slice(-10);
-        blocks.push(`
-          <details class="mini-item">
-            <summary><strong>事件（最近 ${shown.length}/${events.length}）</strong></summary>
-            <div class="muted mono" style="margin-top:8px">${shown.map((e) => escapeHtml(`- ${e.event_type}: ${e.message}`)).join("<br>")}</div>
-          </details>
-        `);
-      }
-
-      if (state.report) {
-        blocks.push(`
-          <div class="mini-item">
-            <div><strong>报告已生成</strong></div>
-            <div class="muted mono">${escapeHtml(state.report.summary ? JSON.stringify(state.report.summary) : "report ready")}</div>
-          </div>
-        `);
-      }
-
-      $("resultList").innerHTML = blocks.length ? blocks.join("") : `<div class="muted">暂无结果</div>`;
+    function agentFindings(agentType, data = {}, sections = {}) {
+      if (Array.isArray(data.findings) && data.findings.length) return data.findings;
+      if (agentType === "web_pentest" || agentType === "web_reverify") return sections.web_pentest || [];
+      if (agentType === "code_audit") return (sections.code_audit || []).filter((item) => !item.artifact_type);
+      return [];
     }
 
-    $("resultList").addEventListener("click", (ev) => {
-      const btn = ev.target.closest("button[data-ref-target]");
-      if (!btn) return;
-      const target = btn.dataset.refTarget || "";
-      const el = target ? document.getElementById(target) : null;
-      if (!el) return;
-      el.classList.toggle("hidden");
-    });
+    function agentArtifacts(agentType, data = {}, sections = {}) {
+      if (Array.isArray(data.artifacts) && data.artifacts.length) return data.artifacts;
+      if (agentType === "code_audit") return (sections.code_audit || []).filter((item) => item.artifact_type);
+      if (agentType === "social_engineering") return sections.phishing || [];
+      return [];
+    }
 
-    $("sendBtn").addEventListener("click", () => sendMessage().catch((err) => bubble("system", "", err.message)));
-    $("approveBtn").addEventListener("click", () => respondDecision("批准继续").catch((err) => bubble("system", "", err.message)));
-    $("rejectBtn").addEventListener("click", () => respondDecision("拒绝").catch((err) => bubble("system", "", err.message)));
-    $("messageInput").addEventListener("keydown", (ev) => {
-      if (ev.key === "Enter" && !ev.shiftKey) {
-        ev.preventDefault();
-        sendMessage().catch((err) => bubble("system", "", err.message));
+    function chineseSummary(agentType, text, findings, artifacts, actions) {
+      const value = String(text || "").trim();
+      if (value.includes("Web initial scan completed")) {
+        return value.replace("Web initial scan completed.", "Web 初扫完成。")
+          .replace("Found:", "发现：")
+          .replace(/\bexposed_source_packages?\b/g, "源码泄露包")
+          .replace(/\bpaths?\b/g, "路径")
+          .replace(/\bemails?\b/g, "邮箱")
+          .replace(/,\s*/g, "、")
+          .replace(/\.$/, "。");
       }
-    });
+      if (value.includes("completed")) {
+        return `${agentNames[agentType] || "Agent"} 已完成，发现 ${findings.length} 条风险/线索，生成 ${artifacts.length} 个产物。`;
+      }
+      if (value) return value;
+      if (agentType === "web_pentest" || agentType === "web_reverify") return `Web 渗透完成，发现 ${findings.length} 条风险/线索。`;
+      if (agentType === "code_audit") return `代码审计完成，发现 ${findings.length} 条代码风险，生成 ${artifacts.length} 个产物。`;
+      if (agentType === "social_engineering") return `社会工程Agent完成，生成 ${artifacts.length} 个邮件/活动结果。`;
+      return `Agent 已完成，建议动作 ${actions.length} 个。`;
+    }
 
-    bubble("system", "", "可以直接输入自然语言，例如：帮我对 http://web1.demotech.local 做一次授权演练。遇到高危动作时，右侧会显示确认卡片。");
+    function severityClass(severity) { const v = String(severity || "info").toLowerCase(); return `severity-${v}`; }
+    function severityBadge(severity) { const v = String(severity || "info").toLowerCase(); const cls = v === "critical" || v === "high" ? "danger" : v === "medium" ? "warn" : ""; return `<span class="chip ${cls}">${escapeHtml(severityText[v] || v)}</span>`; }
+
+    function renderResults(sections = {}) {
+      const web = sections.web_pentest || [];
+      const code = sections.code_audit || [];
+      const phishing = sections.phishing || [];
+      const html = [
+        renderFindingSection("Web渗透结果", web, "暂无 Web 渗透结果"),
+        renderCodeSection(code),
+        renderPhishingSection(phishing),
+      ].join("");
+      $("resultSections").innerHTML = html;
+    }
+
+    function renderFindingSection(title, items, empty) {
+      if (!items.length) return `<div class="result-card"><div class="result-title">${title}</div><div class="muted">${empty}</div></div>`;
+      return `<div class="result-card"><div class="result-title">${title}（${items.length}）</div>${items.map((item) => `<details class="result-card ${severityClass(item.severity)}" ${["critical", "high"].includes(String(item.severity).toLowerCase()) ? "open" : ""}><summary>${severityBadge(item.severity)} ${escapeHtml(item.title)}</summary><div class="muted">${escapeHtml(item.detail)}</div><details class="raw"><summary>证据</summary><pre>${escapeHtml(JSON.stringify(item.evidence || {}, null, 2))}</pre></details></details>`).join("")}</div>`;
+    }
+
+    function renderCodeSection(items) {
+      if (!items.length) return `<div class="result-card"><div class="result-title">代码审计结果</div><div class="muted">暂无代码审计结果</div></div>`;
+      return `<div class="result-card"><div class="result-title">代码审计结果（${items.length}）</div>${items.map((item) => renderCodeItem(item)).join("")}</div>`;
+    }
+
+    function renderCodeItem(item) {
+      if (item.artifact_type) {
+        return `<details class="result-card" open><summary>${severityBadge(item.severity || "info")} ${escapeHtml(item.title || item.artifact_type)}</summary><div class="muted">产物类型：${escapeHtml(item.artifact_type)}</div><div class="mono muted">${escapeHtml(item.artifact_ref || item.detail || "-")}</div><details class="raw"><summary>产物元数据</summary><pre>${escapeHtml(JSON.stringify(item.evidence || {}, null, 2))}</pre></details></details>`;
+      }
+      return `<details class="result-card ${severityClass(item.severity)}" ${["critical", "high"].includes(String(item.severity).toLowerCase()) ? "open" : ""}><summary>${severityBadge(item.severity)} ${escapeHtml(item.title)}</summary><div class="muted">${escapeHtml(item.detail)}</div><div class="mono muted">文件：${escapeHtml(item.file_path || "-")} 行：${escapeHtml(item.line || "-")} 函数：${escapeHtml(item.function || "-")}</div><div>修复建议：${escapeHtml(item.recommendation || "-")}</div><details class="raw"><summary>原始 evidence</summary><pre>${escapeHtml(JSON.stringify(item.evidence || {}, null, 2))}</pre></details></details>`;
+    }
+
+    function renderPhishingSection(items) {
+      if (!items.length) return `<div class="result-card"><div class="result-title">社会工程/邮件结果</div><div class="muted">暂无 Phishing Agent 结果</div></div>`;
+      return `<div class="result-card"><div class="result-title">社会工程/邮件结果（${items.length}）</div>${items.map((item) => `<div class="result-card"><div>${escapeHtml(item.title || item.artifact_type)}</div><div class="muted">状态：${escapeHtml(item.send_status || "-")}</div><div class="muted">用户邮箱：${escapeHtml(item.email || "-")}</div><div class="muted">邮件主题：${escapeHtml(item.subject || "-")}</div><div class="muted">Campaign：${escapeHtml(item.campaign || "-")}</div></div>`).join("")}</div>`;
+    }
+
+    async function request(path) {
+      const resp = await fetch(path, { headers: { "Content-Type": "application/json" } });
+      if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+      return resp.json();
+    }
+
+    async function loadRestState(id, silent = false) {
+      const rootId = (id || $("rootTaskInput").value || "").trim();
+      if (!rootId) { if (!silent) addMessage("system", "", "请先填写 root_task_id。"); return; }
+      const [task, findings, artifacts, approvals, agentTasks, suggestedActions] = await Promise.all([
+        request(`/api/tasks/${rootId}`),
+        request(`/api/tasks/${rootId}/findings`),
+        request(`/api/tasks/${rootId}/artifacts`),
+        request(`/api/tasks/${rootId}/approvals`),
+        request(`/api/tasks/${rootId}/agent-tasks`),
+        request(`/api/tasks/${rootId}/suggested-actions`),
+      ]);
+      state.rootTaskId = rootId;
+      state.task = task;
+      const pendingItems = (approvals || []).concat(suggestedActions || []).filter((item) => {
+        const actionId = item.action_id || item.id || "";
+        return ["pending", "proposed"].includes(String(item.status || "")) && !state.submittedActionIds.has(actionId);
+      });
+      state.pendingApproval = pendingItems[0] || null;
+      const snapshot = {
+        root_task_id: rootId,
+        mode: "manual",
+        task,
+        pending_actions: pendingItems,
+        agent_runs: (agentTasks || []).map((item) => ({
+          id: item.id,
+          agent_type: item.agent_type,
+          status: item.status,
+          summary: item.summary || item.error_message || "",
+          external_task_id: item.external_task_id || "",
+          phase: item.phase || "",
+          message: item.message || "",
+          updated_at: item.updated_at || item.created_at || "",
+        })),
+        sections: buildClientSections(findings || [], artifacts || []),
+      };
+      applySnapshot(snapshot);
+      if (!silent) addMessage("system", "", "已通过 REST 加载任务状态。");
+    }
+
+    function startWorkflowPolling(rootId) {
+      if (!rootId) return;
+      clearTimeout(state.workflowPollTimer);
+      let attempts = 0;
+      async function tick() {
+        attempts += 1;
+        try {
+          await loadRestState(rootId, true);
+          const status = state.task?.status || "";
+          if ((state.pendingApproval && !hasActiveAgentRun()) || ["completed", "rejected", "failed"].includes(status) || attempts >= 60) {
+            setThinking(false);
+            return;
+          }
+          setThinking(true, "流程正在继续执行，正在刷新任务状态...");
+        } catch (err) {
+          if (attempts >= 3) addMessage("system", "状态刷新失败", err.message || String(err));
+        }
+        state.workflowPollTimer = setTimeout(tick, 5000);
+      }
+      state.workflowPollTimer = setTimeout(tick, 3000);
+    }
+
+    function buildClientSections(findings, artifacts) {
+      const sorted = (items) => items.slice().sort((a, b) => severityRank(b.severity) - severityRank(a.severity));
+      const web = sorted(findings.filter((item) => ["web_pentest", "web_reverify"].includes(item.source)));
+      const codeFindings = sorted(findings.filter((item) => item.source === "code_audit")).map((item) => ({
+        ...item,
+        file_path: item.evidence?.file || item.evidence?.path || item.evidence?.file_path || "",
+        function: item.evidence?.function || item.evidence?.function_name || "",
+        line: item.evidence?.line || item.evidence?.line_number || "",
+        recommendation: item.evidence?.recommendation || item.evidence?.fix || "",
+      }));
+      const codeArtifacts = artifacts.filter((item) => ["audit_report", "vulnerability_leads", "code_structure_summary", "raw_result"].includes(item.artifact_type)).map((item) => ({
+        source: "code_audit",
+        severity: "info",
+        title: item.title || item.artifact_type,
+        detail: item.artifact_ref,
+        evidence: item.artifact_metadata || {},
+        artifact_type: item.artifact_type,
+        artifact_ref: item.artifact_ref,
+      }));
+      const code = codeFindings.concat(codeArtifacts);
+      const phishing = artifacts.filter((item) => ["mail_draft", "gophish_campaign_draft", "send_campaigns_result"].includes(item.artifact_type)).map((item) => {
+        const meta = item.artifact_metadata || {};
+        const recipients = meta.recipients_preview || meta.recipients || [];
+        return {
+          artifact_type: item.artifact_type,
+          title: item.title,
+          artifact_ref: item.artifact_ref,
+          email: recipients[0] || meta.email || "",
+          subject: meta.subject || meta.mail_subject || "",
+          send_status: meta.send_status || meta.status || "unknown",
+          campaign: meta.campaign || meta.campaign_id || "",
+          raw: meta,
+        };
+      });
+      return { web_pentest: web, code_audit: code, phishing };
+    }
+
+    function showApprovalModal(approval) {
+      const risk = approval.risk_level || "medium";
+      $("confirmDialog").classList.toggle("danger", risk === "critical" || risk === "high");
+      $("confirmTitle").textContent = risk === "critical" ? "高风险动作二次确认" : "是否执行下一步建议";
+      $("confirmSubtitle").textContent = `${approval.source_agent || "Agent"} -> ${approval.target_agent || approval.action_type || "下一步"}`;
+      $("confirmBody").innerHTML = `<div>动作：${escapeHtml(approval.action_type || "-")}</div><div>原因：${escapeHtml(approval.reason || "Agent 建议执行下一步")}</div><div>风险：${escapeHtml(approval.risk_text || risk)}</div><pre>${escapeHtml(JSON.stringify(approval.payload_preview || approval, null, 2))}</pre>`;
+      $("confirmModal").classList.add("open");
+    }
+    function closeModal() { $("confirmModal").classList.remove("open"); }
+    async function sendDecision(decision) {
+      if (!state.pendingApproval) return closeModal();
+      const actionId = state.pendingApproval.action_id || state.pendingApproval.id || "";
+      const isSuggestedAction = state.pendingApproval.source_agent !== "workflow" && state.pendingApproval.action_payload !== undefined;
+      let submitted = false;
+      if (!isSuggestedAction && state.ws && state.ws.readyState === WebSocket.OPEN) {
+        state.ws.send(JSON.stringify({ type: "approval_decision", action_id: actionId, decision }));
+        submitted = true;
+      } else {
+        try {
+          const resp = isSuggestedAction && state.rootTaskId && actionId
+            ? await fetch(`/api/tasks/${state.rootTaskId}/suggested-actions/${actionId}/decision`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ decision, decided_by: "operator" }),
+              })
+            : await fetch("/api/chat/message", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  message: decision === "approved" ? "确认" : "拒绝",
+                  root_task_id: state.rootTaskId || null,
+                }),
+              });
+          if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+          const data = await resp.json();
+          if (data.status === "blocked") {
+            if (data.reply) addMessage("assistant", "调度器", data.reply);
+            if (data.snapshot) applySnapshot(data.snapshot);
+            if (actionId) state.submittedActionIds.delete(actionId);
+            closeModal();
+            renderSide();
+            return;
+          }
+          if (data.reply) addMessage("assistant", "调度器", data.reply);
+          if (data.root_task_id) state.rootTaskId = data.root_task_id;
+          if (actionId) state.submittedActionIds.add(actionId);
+          if (data.snapshot) applySnapshot(data.snapshot);
+          submitted = true;
+        } catch (err) {
+          addMessage("system", "错误", `确认提交失败：${err.message || String(err)}`);
+        }
+      }
+      if (!submitted) return;
+      if (actionId) state.submittedActionIds.add(actionId);
+      if ((state.pendingApproval?.action_id || state.pendingApproval?.id || "") === actionId) {
+        state.pendingApproval = null;
+      }
+      addMessage("system", "", `已提交确认结果：${decision}，流程正在继续执行。代码审计等步骤可能需要等待一段时间。`);
+      if (decision === "approved") {
+        setThinking(true, "流程正在继续执行，请稍候...");
+        startWorkflowPolling(state.rootTaskId);
+      }
+      closeModal();
+      renderSide();
+    }
+
+    document.querySelectorAll(".pill").forEach((btn) => btn.addEventListener("click", () => { $("messageInput").value = btn.dataset.suggest || ""; sendUserInput(); }));
+    function severityRank(severity) { return { critical: 5, high: 4, medium: 3, low: 2, info: 1 }[String(severity || "info").toLowerCase()] || 0; }
+    $("sendBtn").addEventListener("click", sendUserInput);
+    $("messageInput").addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); sendUserInput(); } });
+    $("clearBtn").addEventListener("click", () => { $("messages").innerHTML = ""; addMessage("system", "", "对话视图已清空。任务状态未删除。"); });
+    $("approveBtn").addEventListener("click", () => sendDecision("approved"));
+    $("rejectBtn").addEventListener("click", () => sendDecision("rejected"));
+    $("deferBtn").addEventListener("click", () => sendDecision("deferred"));
+    $("loadTaskBtn").addEventListener("click", () => loadRestState().catch((err) => addMessage("system", "加载失败", err.message)));
+    $("sessionHint").textContent = `session: ${state.sessionId.slice(0, 8)}`;
+
+    addMessage("system", "", "可以直接输入自然语言。支持自动化流程，也支持单独调用 Web渗透Agent、代码审计Agent 或 Phishing Agent。Agent 建议下一步时会弹窗确认。");
+    renderSide();
+    connectWs();
   </script>
 </body>
 </html>

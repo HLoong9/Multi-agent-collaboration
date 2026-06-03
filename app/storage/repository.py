@@ -126,6 +126,15 @@ class OrchestratorRepository:
         await self.session.refresh(entity)
         return entity
 
+    async def list_agent_tasks(self, root_task_id: uuid.UUID) -> list[AgentTask]:
+        stmt: Select[tuple[AgentTask]] = (
+            select(AgentTask)
+            .where(AgentTask.root_task_id == root_task_id)
+            .order_by(AgentTask.created_at.desc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def get_approval(self, approval_id: uuid.UUID) -> Approval | None:
         return await self.session.get(Approval, approval_id)
 
@@ -259,6 +268,31 @@ class OrchestratorRepository:
             status=status,
         )
         self.session.add(entity)
+        await self.session.commit()
+        await self.session.refresh(entity)
+        return entity
+
+    async def list_suggested_actions(self, root_task_id: uuid.UUID) -> list[SuggestedAction]:
+        stmt: Select[tuple[SuggestedAction]] = select(SuggestedAction).where(
+            SuggestedAction.root_task_id == root_task_id
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_suggested_action(self, action_id: uuid.UUID) -> SuggestedAction | None:
+        return await self.session.get(SuggestedAction, action_id)
+
+    async def decide_suggested_action(
+        self,
+        action_id: uuid.UUID,
+        *,
+        status: str,
+    ) -> SuggestedAction | None:
+        entity = await self.get_suggested_action(action_id)
+        if entity is None:
+            return None
+        entity.status = status
+        entity.updated_at = datetime.now(timezone.utc)
         await self.session.commit()
         await self.session.refresh(entity)
         return entity

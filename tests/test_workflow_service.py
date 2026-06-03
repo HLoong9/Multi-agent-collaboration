@@ -227,6 +227,7 @@ async def test_workflow_service_runs_api_level_simulated_loop() -> None:
         )
     )
     service = WorkflowService(repo, gateway=gateway)
+    service.settings.langgraph_dynamic_enabled = False
     task = await service.create_and_start(
         TaskCreateRequest(
             target_url="http://web1.demotech.local",
@@ -261,6 +262,26 @@ async def test_workflow_service_runs_api_level_simulated_loop() -> None:
 
 
 @pytest.mark.asyncio
+async def test_workflow_service_web_scan_translates_legacy_auth_scope() -> None:
+    repo = InMemoryRepo()
+    root_task = await repo.create_root_task(
+        target_url="http://192.168.184.130:8080",
+        exercise_goal="real web scan",
+        auth_scope={"allowed_hosts": ["192.168.184.130"], "allowed_cidrs": ["192.168.184.0/24"]},
+        created_by="tester",
+    )
+    gateway = RecordingGateway()
+    service = WorkflowService(repo, gateway=gateway)
+
+    await service._run_web_initial_scan(root_task)
+
+    agent_type, payload = gateway.calls[0]
+    assert agent_type == "web_pentest"
+    assert payload["context"]["auth_scope"]["allowed_domains"] == ["192.168.184.130"]
+    assert payload["context"]["auth_scope"]["allowed_ip_ranges"] == ["192.168.184.0/24"]
+
+
+@pytest.mark.asyncio
 async def test_run_code_audit_uses_gateway_with_configured_source_ref() -> None:
     repo = InMemoryRepo()
     root_task = await repo.create_root_task(
@@ -286,3 +307,45 @@ async def test_run_code_audit_uses_gateway_with_configured_source_ref() -> None:
     assert repo.agent_tasks[-1].response_payload["task_id"] == "real-code-task-1"
     assert repo.findings[-1].title == "real finding"
     assert repo.root_task.current_step == "approval_web_reverify"
+
+
+@pytest.mark.asyncio
+async def test_workflow_service_uses_dynamic_runner_when_enabled(monkeypatch) -> None:
+    repo = InMemoryRepo()
+    gateway = AgentGateway(
+        registry=AgentRegistry(
+            {
+                "web_pentest": "mock://web",
+                "code_audit": "mock://code",
+                "social_engineering": "mock://social",
+            }
+        )
+    )
+
+    class FakeDynamicWorkflowRunner:
+        def __init__(self, repo, gateway=None):
+            self.repo = repo
+            self.gateway = gateway
+
+        async def run_until_pause_or_complete(self, root_task_id):
+            await self.repo.set_root_task_step(
+                root_task_id,
+                status="waiting_approval",
+                current_step="approval_gate",
+            )
+
+    monkeypatch.setattr("app.workflow.dynamic_runner.DynamicWorkflowRunner", FakeDynamicWorkflowRunner)
+
+    service = WorkflowService(repo, gateway=gateway)
+    service.settings.langgraph_dynamic_enabled = True
+
+    task = await service.create_and_start(
+        TaskCreateRequest(
+            target_url="http://web1.demotech.local",
+            exercise_goal="dynamic flow",
+            auth_scope={"allowed_hosts": ["web1.demotech.local"]},
+        )
+    )
+
+    assert task.status == "waiting_approval"
+    assert task.current_step == "approval_gate"

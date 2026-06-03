@@ -25,3 +25,9 @@ class MultiAgentState(TypedDict):
     workflow_status: str
     waiting_approval: bool
     approval_decisions: NotRequired[dict]
+    planner_context: NotRequired[dict]
+    planner_decision: NotRequired[dict]
+    validation_result: NotRequired[dict]
+    pending_approval_id: NotRequired[str]
+    agent_response: NotRequired[dict]
+    iteration_count: NotRequired[int]

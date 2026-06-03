@@ -17,6 +17,7 @@ from app.services.simulated_agents import (
     simulate_web_initial_scan,
     simulate_web_reverify,
 )
+from app.services.web_auth_scope import normalize_web_auth_scope
 from app.storage.repository import OrchestratorRepository
 
 
@@ -64,7 +65,12 @@ class WorkflowService:
             message="root task created",
             payload={"target_url": payload.target_url},
         )
-        await self.run_until_pause_or_complete(task.id)
+        if self.settings.langgraph_dynamic_enabled:
+            from app.workflow.dynamic_runner import DynamicWorkflowRunner
+
+            await DynamicWorkflowRunner(self.repo, gateway=self.gateway).run_until_pause_or_complete(task.id)
+        else:
+            await self.run_until_pause_or_complete(task.id)
         return await self.repo.get_root_task(task.id)
 
     async def resume_after_approval(self, approval_id: uuid.UUID):
@@ -87,8 +93,13 @@ class WorkflowService:
             return await self.repo.get_root_task(approval.root_task_id)
 
         if approval.status == "approved":
-            await self._advance_after_approval(approval.root_task_id, approval.action_type)
-            await self.run_until_pause_or_complete(approval.root_task_id)
+            if self.settings.langgraph_dynamic_enabled:
+                from app.workflow.dynamic_runner import DynamicWorkflowRunner
+
+                await DynamicWorkflowRunner(self.repo, gateway=self.gateway).resume_after_approval(approval.id)
+            else:
+                await self._advance_after_approval(approval.root_task_id, approval.action_type)
+                await self.run_until_pause_or_complete(approval.root_task_id)
 
         return await self.repo.get_root_task(approval.root_task_id)
 
@@ -255,13 +266,25 @@ class WorkflowService:
         )
 
     async def _run_web_initial_scan(self, task) -> None:
+        auth_scope = normalize_web_auth_scope(task.auth_scope)
         payload = {
             "root_task_id": str(task.id),
-            "target_url": task.target_url,
-            "auth_scope": task.auth_scope,
-            "requested_outputs": ["findings", "artifacts", "suggested_actions"],
+            "task_type": "web_initial_scan",
+            "input": {
+                "target_url": task.target_url,
+                "scan_depth": "safe",
+            },
+            "context": {
+                "auth_scope": auth_scope,
+                "policy": {
+                    "max_runtime_seconds": 1800,
+                    "max_steps": 70,
+                    "allow_active_verification": False,
+                    "allow_destructive_test": False,
+                },
+            },
         }
-        response = simulate_web_initial_scan(payload)
+        response = await self.gateway.execute("web_pentest", payload)
         await self._store_agent_response(
             root_task_id=task.id,
             agent_type="web_pentest",
@@ -376,16 +399,36 @@ class WorkflowService:
 
     async def _run_web_reverify(self, root_task_id: uuid.UUID) -> None:
         findings = await self.repo.list_findings(root_task_id)
+        task = await self.repo.get_root_task(root_task_id)
+        auth_scope = normalize_web_auth_scope(task.auth_scope if task else {})
+        code_audit_findings = [
+            item for item in findings if item.source == "code_audit"
+        ]
+        leads = []
+        for item in code_audit_findings:
+            leads.append({
+                "source_finding_id": getattr(item, "finding_id", str(root_task_id)),
+                "vulnerability_type": item.title,
+                "endpoint": getattr(item, "detail", ""),
+            })
         payload = {
             "root_task_id": str(root_task_id),
-            "code_audit_findings": [
-                {"title": item.title, "detail": item.detail, "evidence": item.evidence}
-                for item in findings
-                if item.source == "code_audit"
-            ],
-            "requested_outputs": ["findings", "artifacts", "suggested_actions"],
+            "task_type": "web_reverify",
+            "input": {
+                "target_url": task.target_url if task else "",
+                "leads": leads,
+            },
+            "context": {
+                "auth_scope": auth_scope,
+                "policy": {
+                    "max_runtime_seconds": 1800,
+                    "max_steps": 70,
+                    "allow_active_verification": True,
+                    "allow_destructive_test": False,
+                },
+            },
         }
-        response = simulate_web_reverify(payload)
+        response = await self.gateway.execute("web_pentest", payload)
         await self._store_agent_response(
             root_task_id=root_task_id,
             agent_type="web_reverify",

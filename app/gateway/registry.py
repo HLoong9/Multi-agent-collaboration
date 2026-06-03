@@ -15,6 +15,7 @@ class AgentRegistry:
         return cls(
             {
                 "web_pentest": settings.web_agent_base_url,
+                "web_reverify": settings.web_agent_base_url,
                 "code_audit": settings.code_agent_base_url,
                 "social_engineering": settings.social_agent_base_url,
             }

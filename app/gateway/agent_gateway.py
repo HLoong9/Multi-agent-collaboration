@@ -42,20 +42,23 @@ class AgentGateway:
             return self._mock_response(agent_type)
 
         try:
-            create_resp = await self._request_json("POST", f"{base_url}/tasks", payload)
+            create_resp, _ = await self._request_json("POST", f"{base_url}/tasks", payload)
             task_id = create_resp.get("task_id") or create_resp.get("id")
             if not task_id:
                 raise ValueError("agent create response missing task_id")
 
-            await self._request_json("POST", f"{base_url}/tasks/{task_id}/start", {})
+            await self._request_json("POST", f"{base_url}/tasks/{task_id}/start", {"approved": True})
 
             for _ in range(self.poll_attempts):
-                result = await self._request_json("GET", f"{base_url}/tasks/{task_id}/result", None)
+                result, status_code = await self._request_json("GET", f"{base_url}/tasks/{task_id}/result", None)
                 status = str(result.get("status", "")).lower()
-                if status in {"running", "pending", "created", "started"}:
+                if status_code == 202:
                     await asyncio.sleep(self.poll_interval_seconds)
                     continue
-                return self._validate_response(result)
+                if status in {"queued", "running", "pending", "created", "started"}:
+                    await asyncio.sleep(self.poll_interval_seconds)
+                    continue
+                return self._validate_response(result, agent_type=agent_type)
 
             raise GatewayRecoverableError("agent_result_timeout")
         except httpx.TimeoutException as exc:
@@ -63,7 +66,7 @@ class AgentGateway:
         except httpx.HTTPError as exc:
             raise GatewayRecoverableError("agent_http_error") from exc
 
-    async def _request_json(self, method: str, url: str, payload: dict | None) -> dict:
+    async def _request_json(self, method: str, url: str, payload: dict | None) -> tuple[dict, int]:
         if self.client is not None:
             response = await self.client.request(
                 method,
@@ -72,7 +75,7 @@ class AgentGateway:
                 timeout=self.timeout_seconds,
             )
             response.raise_for_status()
-            return response.json()
+            return response.json(), response.status_code
 
         async with httpx.AsyncClient() as client:
             response = await client.request(
@@ -82,9 +85,9 @@ class AgentGateway:
                 timeout=self.timeout_seconds,
             )
             response.raise_for_status()
-            return response.json()
+            return response.json(), response.status_code
 
-    def _validate_response(self, payload: dict) -> AgentTaskResponse:
+    def _validate_response(self, payload: dict, *, agent_type: str = "") -> AgentTaskResponse:
         required_fields = {
             "task_id",
             "status",
@@ -97,6 +100,9 @@ class AgentGateway:
         missing = [item for item in required_fields if item not in payload]
         if missing:
             raise ValueError(f"missing fields: {','.join(sorted(missing))}")
+        for item in payload.get("findings", []):
+            if isinstance(item, dict) and not item.get("source"):
+                item["source"] = agent_type
         return AgentTaskResponse.model_validate(payload)
 
     def _mock_response(self, agent_type: str) -> AgentTaskResponse:

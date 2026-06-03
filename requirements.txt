@@ -7,5 +7,7 @@ asyncpg
 alembic
 httpx
 langgraph
+langchain
+langchain-core
 pytest
 pytest-asyncio

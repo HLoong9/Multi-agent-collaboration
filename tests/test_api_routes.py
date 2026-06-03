@@ -47,6 +47,48 @@ def test_create_and_get_task_routes() -> None:
         async def list_approvals(self, root_task_id):
             return []
 
+        async def list_agent_tasks(self, root_task_id):
+            return [
+                SimpleNamespace(
+                    id=uuid4(),
+                    root_task_id=root_task_id,
+                    agent_type="code_audit",
+                    status="completed",
+                    request_payload={"task_type": "audit_source_artifact"},
+                    response_payload={"summary": "code audit done"},
+                    error_message=None,
+                    run_index=1,
+                    created_at=_dt(),
+                    updated_at=None,
+                )
+            ]
+
+        async def list_suggested_actions(self, root_task_id):
+            return [
+                SimpleNamespace(
+                    id=uuid4(),
+                    root_task_id=root_task_id,
+                    agent_task_id=None,
+                    action_type="start_web_reverify",
+                    action_payload={"reason": "发现硬编码凭据，建议二次验证"},
+                    status="proposed",
+                    created_at=_dt(),
+                    updated_at=None,
+                )
+            ]
+
+        async def decide_suggested_action(self, root_task_id, action_id, decision, decided_by, comment):
+            return SimpleNamespace(
+                id=action_id,
+                root_task_id=root_task_id,
+                agent_task_id=None,
+                action_type="start_web_reverify",
+                action_payload={"reason": "发现硬编码凭据，建议二次验证"},
+                status=decision,
+                created_at=_dt(),
+                updated_at=None,
+            )
+
     app.dependency_overrides[get_task_manager] = lambda: FakeManager()
     client = TestClient(app)
 
@@ -65,6 +107,25 @@ def test_create_and_get_task_routes() -> None:
     detail = client.get(f"/api/tasks/{task_id}")
     assert detail.status_code == 200
     assert detail.json()["target_url"] == "http://web1.demotech.local"
+
+    agent_tasks = client.get(f"/api/tasks/{task_id}/agent-tasks")
+    assert agent_tasks.status_code == 200
+    assert agent_tasks.json()[0]["agent_type"] == "code_audit"
+    assert agent_tasks.json()[0]["summary"] == "code audit done"
+
+    suggested_actions = client.get(f"/api/tasks/{task_id}/suggested-actions")
+    assert suggested_actions.status_code == 200
+    assert suggested_actions.json()[0]["action_type"] == "start_web_reverify"
+    assert suggested_actions.json()[0]["status"] == "proposed"
+
+    action_id = uuid4()
+    decision = client.post(
+        f"/api/tasks/{task_id}/suggested-actions/{action_id}/decision",
+        json={"decision": "approved", "decided_by": "operator", "comment": "ok"},
+    )
+    assert decision.status_code == 200
+    assert decision.json()["status"] == "approved"
+    assert decision.json()["action_type"] == "start_web_reverify"
 
     app.dependency_overrides.clear()
 

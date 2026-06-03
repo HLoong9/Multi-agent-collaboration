@@ -53,6 +53,26 @@ class _FakeAsyncClient:
         )
 
 
+class _FakeTextAsyncClient:
+    def __init__(self, reply_text: str = "你好，有什么可以帮你的？"):
+        self._reply_text = reply_text
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+    async def post(self, url, json=None, headers=None):
+        return _FakeResponse(
+            {
+                "choices": [
+                    {"message": {"content": self._reply_text}}
+                ]
+            }
+        )
+
+
 class _LLMRepo:
     def __init__(self) -> None:
         self.root_task = SimpleNamespace(
@@ -134,6 +154,73 @@ async def test_llm_client_expands_ollama_root_to_openai_v1(monkeypatch) -> None:
     )
 
     assert _FakeAsyncClient.urls == ["http://ollama.local:11434/v1/chat/completions"]
+
+
+@pytest.mark.asyncio
+async def test_llm_client_expands_plain_openai_host_to_v1(monkeypatch) -> None:
+    _FakeAsyncClient.urls = []
+    monkeypatch.setattr("app.llm.client.httpx.AsyncClient", _FakeAsyncClient)
+    client = LLMClient(base_url="http://172.16.0.150", api_key="k", model="m")
+
+    await client.chat_json(
+        system_prompt="system",
+        user_payload={"hello": "world"},
+    )
+
+    assert _FakeAsyncClient.urls == ["http://172.16.0.150/v1/chat/completions"]
+
+
+@pytest.mark.asyncio
+async def test_llm_client_keeps_explicit_openai_v1(monkeypatch) -> None:
+    _FakeAsyncClient.urls = []
+    monkeypatch.setattr("app.llm.client.httpx.AsyncClient", _FakeAsyncClient)
+    client = LLMClient(base_url="http://172.16.0.150/v1", api_key="k", model="m")
+
+    await client.chat_json(
+        system_prompt="system",
+        user_payload={"hello": "world"},
+    )
+
+    assert _FakeAsyncClient.urls == ["http://172.16.0.150/v1/chat/completions"]
+
+
+@pytest.mark.asyncio
+async def test_llm_client_chat_text_returns_plain_text(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.llm.client.httpx.AsyncClient",
+        lambda *a, **kw: _FakeTextAsyncClient("我是调度助手，可以帮你启动 Agent。"),
+    )
+    client = LLMClient(base_url="http://fake/v1", api_key="k", model="m")
+    reply = await client.chat_text(
+        system_prompt="你是助手",
+        user_message="你好",
+    )
+    assert reply == "我是调度助手，可以帮你启动 Agent。"
+
+
+@pytest.mark.asyncio
+async def test_llm_client_chat_text_raises_on_bad_response(monkeypatch) -> None:
+    class _BadResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"choices": []}
+
+    class _BadClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def post(self, url, json=None, headers=None):
+            return _BadResponse()
+
+    monkeypatch.setattr("app.llm.client.httpx.AsyncClient", _BadClient)
+    client = LLMClient(base_url="http://fake/v1", api_key="k", model="m")
+    with pytest.raises(Exception):
+        await client.chat_text(system_prompt="s", user_message="hi")
 
 
 def test_llm_advice_model_round_trip() -> None:

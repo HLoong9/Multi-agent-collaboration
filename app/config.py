@@ -28,14 +28,18 @@ class Settings(BaseSettings):
     code_audit_source_ref: str = ""
     social_agent_base_url: str = "http://127.0.0.1:8888/api"
     llm_enabled: bool = True
-    llm_model: str = "deepseek-r1:14b"
-    llm_base_url: str = "http://172.16.0.235:11434"
+    llm_provider: str = "openai"
+    llm_model: str = "qwen3-8b"
+    llm_base_url: str = "http://172.16.0.150/v1"
     llm_api_key: str = ""
-    llm_timeout_seconds: int = 180
+    llm_timeout_seconds: int = 120
     llm_emit_suggested_actions: bool = True
     chat_db_timeout_seconds: float = 180.0
+    langgraph_dynamic_enabled: bool = False
+    planner_max_iterations: int = 8
+    planner_max_repeated_decisions: int = 2
 
-    agent_timeout_seconds: int = 120
+    agent_timeout_seconds: int = 1800
     max_total_agent_tasks: int = 6
     max_same_agent_runs: int = 2
     max_web_reverify_runs: int = 1

@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import json
 from typing import Any
-from urllib.parse import urlparse
-
 import httpx
 
 from app.config import get_settings
@@ -31,10 +29,45 @@ class LLMClient:
         self.timeout_seconds = timeout_seconds or settings.llm_timeout_seconds
 
     def _normalize_base_url(self, base_url: str) -> str:
-        parsed = urlparse(base_url)
-        if parsed.port == 11434 and not parsed.path.rstrip("/").endswith("/v1"):
-            return f"{base_url}/v1"
-        return base_url
+        normalized = (base_url or "").strip().rstrip("/")
+        if normalized.endswith("/v1"):
+            return normalized
+        return f"{normalized}/v1"
+
+    async def chat_text(
+        self,
+        *,
+        system_prompt: str,
+        user_message: str,
+    ) -> str:
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+            "temperature": 0.7,
+        }
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
+        async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+            try:
+                response = await client.post(
+                    f"{self.base_url}/chat/completions",
+                    json=payload,
+                    headers=headers,
+                )
+                response.raise_for_status()
+            except httpx.HTTPError as exc:
+                raise LLMClientError("llm_http_error") from exc
+
+        try:
+            data = response.json()
+            return data["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise LLMClientError("llm_invalid_response") from exc
 
     async def chat_json(
         self,
